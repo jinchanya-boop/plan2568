@@ -551,13 +551,13 @@
                 <!-- Submit Buttons -->
                 <div class="flex flex-col sm:flex-row gap-4 pt-6">
                     <button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-6 rounded-lg transition-colors">
-                        💾 บันทึกไป Google Sheets
+                        บันทึกไป Google Sheets
                     </button>
                     <button type="button" onclick="generatePDF()" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-6 rounded-lg transition-colors">
-                        📄 ส่งออก PDF
+                        ส่งออก PDF
                     </button>
                     <button type="button" onclick="previewForm()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors">
-                        👁️ ดูตัวอย่าง
+                        ดูตัวอย่าง
                     </button>
                 </div>
             </form>
@@ -585,12 +585,12 @@
             <div class="bg-white rounded-lg max-w-2xl w-full max-h-screen overflow-y-auto">
                 <div class="p-6">
                     <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-xl font-bold">📋 วิธีการตั้งค่า Google Sheets API</h3>
+                        <h3 class="text-xl font-bold">วิธีการตั้งค่า Google Sheets API</h3>
                         <button onclick="closeInstructions()" class="text-gray-500 hover:text-gray-700">✕</button>
                     </div>
                     <div class="space-y-4 text-sm">
                         <div class="bg-blue-50 p-4 rounded-lg">
-                            <h4 class="font-semibold mb-2">🔧 ขั้นตอนการตั้งค่า:</h4>
+                            <h4 class="font-semibold mb-2">ขั้นตอนการตั้งค่า:</h4>
                             <ol class="list-decimal list-inside space-y-2">
                                 <li>ไปที่ <a href="https://console.cloud.google.com" target="_blank" class="text-blue-600 underline">Google Cloud Console</a></li>
                                 <li>สร้างโปรเจกต์ใหม่หรือเลือกโปรเจกต์ที่มีอยู่</li>
@@ -601,7 +601,7 @@
                         </div>
                         
                         <div class="bg-green-50 p-4 rounded-lg">
-                            <h4 class="font-semibold mb-2">📊 การสร้าง Google Sheets:</h4>
+                            <h4 class="font-semibold mb-2">การสร้าง Google Sheets:</h4>
                             <ol class="list-decimal list-inside space-y-2">
                                 <li>สร้าง Google Sheets ใหม่</li>
                                 <li><strong>ตั้งค่าการแชร์เป็น "Anyone with the link can EDIT"</strong> (สำคัญมาก!)</li>
@@ -612,7 +612,7 @@
                         </div>
                         
                         <div class="bg-yellow-50 p-4 rounded-lg">
-                            <h4 class="font-semibold mb-2">⚠️ หมายเหตุสำคัญ:</h4>
+                            <h4 class="font-semibold mb-2">หมายเหตุสำคัญ:</h4>
                             <ul class="list-disc list-inside space-y-1">
                                 <li>Google Sheets ต้องเปิดการแชร์สาธารณะ</li>
                                 <li>API Key ควรจำกัดการใช้งานเฉพาะ Sheets API</li>
@@ -646,6 +646,9 @@
             loadDashboardData();
             document.querySelector('input[name="reportDate"]').value = new Date().toISOString().split('T')[0];
             
+            // Auto-fill API credentials if they match provided values
+            autoFillCredentials();
+            
             // Show instructions on first visit
             if (!localStorage.getItem('hasSeenInstructions')) {
                 setTimeout(() => {
@@ -655,7 +658,20 @@
             }
         });
 
-        // Google Sheets API Functions
+        // Auto-fill credentials for testing
+        function autoFillCredentials() {
+            const sheetsIdInput = document.getElementById('sheetsId');
+            const apiKeyInput = document.getElementById('apiKey');
+            
+            if (!sheetsIdInput.value) {
+                sheetsIdInput.value = '1hC88MRoGMYpHrwUvwS_mM9gwpJZuSBfiZqOftwVfywc';
+            }
+            if (!apiKeyInput.value) {
+                apiKeyInput.value = 'AIzaSyBdr-oTmInHQL8WkoBzWx93VuvoRD4hWZo';
+            }
+        }
+
+        // Improved Google Sheets API Functions
         function loadStoredConfig() {
             const storedSheetsId = localStorage.getItem('sheetsId');
             const storedApiKey = localStorage.getItem('apiKey');
@@ -695,15 +711,16 @@
                 
                 if (response.ok) {
                     const data = await response.json();
-                    showStatus(`✅ เชื่อมต่อสำเร็จ: ${data.properties.title}`, 'success');
+                    showStatus(`เชื่อมต่อสำเร็จ: ${data.properties.title}`, 'success');
                     isGoogleSheetsConnected = true;
                     document.getElementById('syncStatus').classList.remove('hidden');
                     syncFromSheets();
                 } else {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                    const errorData = await response.json();
+                    throw new Error(`HTTP ${response.status}: ${errorData.error?.message || response.statusText}`);
                 }
             } catch (error) {
-                showStatus(`❌ เชื่อมต่อไม่สำเร็จ: ${error.message}`, 'error');
+                showStatus(`เชื่อมต่อไม่สำเร็จ: ${error.message}`, 'error');
                 isGoogleSheetsConnected = false;
                 document.getElementById('syncStatus').classList.add('hidden');
             }
@@ -712,16 +729,15 @@
         function createSheetsTemplate() {
             const sheetsId = document.getElementById('sheetsId').value;
             
-            // Headers for the spreadsheet
+            // Updated headers to match the data structure
             const headers = [
                 'วันที่บันทึก', 'ชื่อโครงการ', 'ฝ่าย', 'กลยุทธ์', 'มาตรฐาน', 'ระยะเวลา', 'ผู้รับผิดชอบ',
                 'สถานะระยะเวลา', 'ความเหมาะสมสถานที่', 'จำนวนอุปกรณ์', 'อุปกรณ์ที่ขาด', 'คุณภาพอุปกรณ์',
                 'จำนวนบุคลากร', 'ความร่วมมือ', 'งบประมาณจัดสรร', 'งบประมาณใช้', 'งบประมาณคงเหลือ',
                 'ผลสัมฤทธิ์', 'รายละเอียดผลสัมฤทธิ์', 'ผลปริมาณ', 'ผลคุณภาพ', 'ปัญหาอุปสรรค',
-                'ปัญหาอื่นๆ', 'ข้อเสนอแนะ', 'สรุปผลการประเมิน', 'ผู้รายงาน', 'วันที่รายงาน'
+                'ปัญหาอื่นๆ', 'ข้อเสนอแนะ', 'สรุปผลการประเมิน', 'ผู้รายงาน', 'วันที่รายงาน', 'KPI_Data'
             ];
             
-            // Show template creation instructions (works even without Sheets ID)
             showTemplateInstructions(headers, sheetsId);
         }
 
@@ -731,14 +747,14 @@
             
             const sheetsLink = sheetsId ? 
                 `<div class="bg-blue-50 p-4 rounded-lg">
-                    <h4 class="font-semibold mb-2">🔗 ลิงก์ Google Sheets ของคุณ:</h4>
+                    <h4 class="font-semibold mb-2">ลิงก์ Google Sheets ของคุณ:</h4>
                     <a href="https://docs.google.com/spreadsheets/d/${sheetsId}/edit" target="_blank" 
                        class="text-blue-600 underline break-all">
                        https://docs.google.com/spreadsheets/d/${sheetsId}/edit
                     </a>
                 </div>` :
                 `<div class="bg-orange-50 p-4 rounded-lg">
-                    <h4 class="font-semibold mb-2">🔗 สร้าง Google Sheets ใหม่:</h4>
+                    <h4 class="font-semibold mb-2">สร้าง Google Sheets ใหม่:</h4>
                     <p class="text-sm mb-2">1. ไปที่ <a href="https://sheets.google.com" target="_blank" class="text-blue-600 underline">Google Sheets</a></p>
                     <p class="text-sm mb-2">2. สร้างไฟล์ใหม่</p>
                     <p class="text-sm">3. คัดลอก Sheets ID จาก URL แล้วใส่ในช่องด้านบน</p>
@@ -748,7 +764,7 @@
                 <div class="bg-white rounded-lg max-w-4xl w-full max-h-screen overflow-y-auto">
                     <div class="p-6">
                         <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-xl font-bold">📋 วิธีสร้างเทมเพลต Google Sheets</h3>
+                            <h3 class="text-xl font-bold">วิธีสร้างเทมเพลต Google Sheets</h3>
                             <button onclick="this.closest('.fixed').remove()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
                         </div>
                         
@@ -756,7 +772,7 @@
                             ${sheetsLink}
                             
                             <div class="bg-yellow-50 p-4 rounded-lg">
-                                <h4 class="font-semibold mb-2">📝 ขั้นตอนการสร้างเทมเพลต:</h4>
+                                <h4 class="font-semibold mb-2">ขั้นตอนการสร้างเทมเพลต:</h4>
                                 <ol class="list-decimal list-inside space-y-2 text-sm">
                                     <li>เปิด Google Sheets (ใช้ลิงก์ด้านบนหรือสร้างใหม่)</li>
                                     <li>คัดลอกหัวตารางด้านล่างนี้</li>
@@ -768,20 +784,20 @@
                             </div>
                             
                             <div class="bg-green-50 p-4 rounded-lg">
-                                <h4 class="font-semibold mb-2">📊 หัวตารางที่ต้องคัดลอก:</h4>
+                                <h4 class="font-semibold mb-2">หัวตารางที่ต้องคัดลอก:</h4>
                                 <div class="bg-white p-3 rounded border text-xs overflow-x-auto">
                                     <div class="whitespace-nowrap font-mono" style="font-size: 10px;">
                                         ${headers.join('\t')}
                                     </div>
                                 </div>
                                 <button onclick="copyHeaders()" class="mt-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm">
-                                    📋 คัดลอกหัวตาราง
+                                    คัดลอกหัวตาราง
                                 </button>
                                 <p class="text-xs text-gray-600 mt-1">หลังคัดลอกแล้ว ไปวางใน Google Sheets โดยกด Ctrl+V</p>
                             </div>
                             
                             <div class="bg-red-50 p-4 rounded-lg">
-                                <h4 class="font-semibold mb-2">⚠️ หมายเหตุสำคัญ:</h4>
+                                <h4 class="font-semibold mb-2">หมายเหตุสำคัญ:</h4>
                                 <ul class="list-disc list-inside space-y-1 text-sm">
                                     <li><strong>Google Sheets ต้องตั้งค่าการแชร์เป็น "Anyone with the link can EDIT"</strong> (ไม่ใช่ view)</li>
                                     <li>หัวตารางต้องอยู่ในแถวที่ 1 เท่านั้น</li>
@@ -809,7 +825,7 @@
                 const text = headers.join('\t');
                 if (navigator.clipboard && navigator.clipboard.writeText) {
                     navigator.clipboard.writeText(text).then(() => {
-                        alert('✅ คัดลอกหัวตารางเรียบร้อยแล้ว!\n\nขั้นตอนต่อไป:\n1. ไปที่ Google Sheets\n2. คลิกเซลล์ A1\n3. กด Ctrl+V เพื่อวาง');
+                        alert('คัดลอกหัวตารางเรียบร้อยแล้ว!\n\nขั้นตอนต่อไป:\n1. ไปที่ Google Sheets\n2. คลิกเซลล์ A1\n3. กด Ctrl+V เพื่อวาง');
                     }).catch(() => {
                         fallbackCopy();
                     });
@@ -828,13 +844,58 @@
                     textArea.select();
                     try {
                         document.execCommand('copy');
-                        alert('✅ คัดลอกหัวตารางเรียบร้อยแล้ว!\n\nขั้นตอนต่อไป:\n1. ไปที่ Google Sheets\n2. คลิกเซลล์ A1\n3. กด Ctrl+V เพื่อวาง');
+                        alert('คัดลอกหัวตารางเรียบร้อยแล้ว!\n\nขั้นตอนต่อไป:\n1. ไปที่ Google Sheets\n2. คลิกเซลล์ A1\n3. กด Ctrl+V เพื่อวาง');
                     } catch (err) {
-                        alert('❌ ไม่สามารถคัดลอกอัตโนมัติได้\n\nกรุณาคัดลอกข้อความในกล่องด้านบนด้วยตนเอง');
+                        alert('ไม่สามารถคัดลอกอัตโนมัติได้\n\nกรุณาคัดลอกข้อความในกล่องด้านบนด้วยตนเอง');
                     }
                     document.body.removeChild(textArea);
                 }
             };
+        }
+
+        // Improved form data collection and Google Sheets saving
+        function collectFormData(formData) {
+            const data = {};
+            
+            // Handle regular form fields
+            for (let [key, value] of formData.entries()) {
+                if (data[key]) {
+                    // Handle multiple values (like checkboxes)
+                    if (Array.isArray(data[key])) {
+                        data[key].push(value);
+                    } else {
+                        data[key] = [data[key], value];
+                    }
+                } else {
+                    data[key] = value;
+                }
+            }
+            
+            // Handle checkbox groups properly
+            const checkboxes = document.querySelectorAll('input[type="checkbox"][name="problems"]:checked');
+            const selectedProblems = Array.from(checkboxes).map(cb => cb.value);
+            data.problems = selectedProblems;
+            
+            // Collect KPI data
+            const kpiData = [];
+            for (let i = 1; i <= kpiCounter; i++) {
+                const kpi = data[`kpi${i}`];
+                const target = data[`target${i}`];
+                const result = data[`result${i}`];
+                const summary = data[`summary${i}`];
+                
+                if (kpi && kpi.trim()) {
+                    kpiData.push({
+                        kpi: kpi,
+                        target: target || 0,
+                        result: result || 0,
+                        summary: summary || ''
+                    });
+                }
+            }
+            data.kpiData = kpiData;
+            
+            return data;
         }
 
         async function saveToGoogleSheets(data) {
@@ -845,12 +906,10 @@
                 throw new Error('กรุณากรอก Sheets ID และ API Key');
             }
             
-            console.log('🔄 Starting Google Sheets save process...');
-            console.log('📊 Sheets ID:', sheetsId);
-            console.log('🔑 API Key length:', apiKey.length);
-            console.log('📝 Data to save:', data);
+            console.log('Starting Google Sheets save process...');
+            console.log('Data to save:', data);
             
-            // Prepare data row with proper encoding
+            // Prepare data row with proper encoding and structure
             const rowData = [
                 new Date().toLocaleString('th-TH'),
                 data.projectName || '',
@@ -878,75 +937,71 @@
                 data.suggestions || '',
                 data.finalResult || '',
                 data.reporterName || '',
-                data.reportDate || ''
+                data.reportDate || '',
+                JSON.stringify(data.kpiData || [])
             ];
             
-            console.log('📋 Row data prepared:', rowData);
+            console.log('Row data prepared:', rowData);
             
             try {
                 // Step 1: Get sheet metadata
-                console.log('🔍 Step 1: Getting sheet metadata...');
+                console.log('Getting sheet metadata...');
                 const metadataUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetsId}?key=${apiKey}`;
-                console.log('🌐 Metadata URL:', metadataUrl);
                 
                 const metadataResponse = await fetch(metadataUrl);
-                console.log('📡 Metadata response status:', metadataResponse.status);
                 
                 if (!metadataResponse.ok) {
                     const errorText = await metadataResponse.text();
-                    console.error('❌ Metadata error response:', errorText);
+                    console.error('Metadata error response:', errorText);
                     
                     if (metadataResponse.status === 403) {
-                        throw new Error('🔑 API Key ไม่ถูกต้องหรือไม่มีสิทธิ์เข้าถึง Google Sheets API\n\n💡 วิธีแก้ไข:\n1. ตรวจสอบ API Key ใน Google Cloud Console\n2. เปิดใช้งาน Google Sheets API\n3. ตั้งค่า API Key Restrictions ให้ถูกต้อง');
+                        throw new Error('API Key ไม่ถูกต้องหรือไม่มีสิทธิ์เข้าถึง Google Sheets API\n\nวิธีแก้ไข:\n1. ตรวจสอบ API Key ใน Google Cloud Console\n2. เปิดใช้งาน Google Sheets API\n3. ตั้งค่า API Key Restrictions ให้ถูกต้อง');
                     } else if (metadataResponse.status === 404) {
-                        throw new Error('📊 ไม่พบ Google Sheets หรือ Sheets ID ไม่ถูกต้อง\n\n💡 วิธีแก้ไข:\n1. ตรวจสอบ Sheets ID จาก URL\n2. ตรวจสอบการแชร์ Google Sheets');
+                        throw new Error('ไม่พบ Google Sheets หรือ Sheets ID ไม่ถูกต้อง\n\nวิธีแก้ไข:\n1. ตรวจสอบ Sheets ID จาก URL\n2. ตรวจสอบการแชร์ Google Sheets');
                     } else if (metadataResponse.status === 400) {
-                        throw new Error('⚠️ คำขอไม่ถูกต้อง กรุณาตรวจสอบ Sheets ID และ API Key');
+                        throw new Error('คำขอไม่ถูกต้อง กรุณาตรวจสอบ Sheets ID และ API Key');
                     } else {
-                        throw new Error(`🚫 ไม่สามารถเข้าถึง Google Sheets ได้ (${metadataResponse.status})\n\nรายละเอียด: ${errorText}`);
+                        throw new Error(`ไม่สามารถเข้าถึง Google Sheets ได้ (${metadataResponse.status})\n\nรายละเอียด: ${errorText}`);
                     }
                 }
                 
                 const sheetMetadata = await metadataResponse.json();
-                console.log('✅ Sheet metadata received:', sheetMetadata.properties?.title);
+                console.log('Sheet metadata received:', sheetMetadata.properties?.title);
                 
                 // Get the first sheet name
                 const firstSheet = sheetMetadata.sheets?.[0];
                 if (!firstSheet) {
-                    throw new Error('📋 ไม่พบแผ่นงานใน Google Sheets');
+                    throw new Error('ไม่พบแผ่นงานใน Google Sheets');
                 }
                 
                 const sheetName = firstSheet.properties.title;
-                console.log('📄 Using sheet name:', sheetName);
+                console.log('Using sheet name:', sheetName);
                 
                 // Step 2: Check if sheet has headers
-                console.log('🔍 Step 2: Checking sheet headers...');
-                const checkUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetsId}/values/${encodeURIComponent(sheetName)}!A1:AA1?key=${apiKey}`;
-                console.log('🌐 Check headers URL:', checkUrl);
+                console.log('Checking sheet headers...');
+                const checkUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetsId}/values/${encodeURIComponent(sheetName)}!A1:AB1?key=${apiKey}`;
                 
                 const checkResponse = await fetch(checkUrl);
-                console.log('📡 Check headers response status:', checkResponse.status);
                 
                 if (checkResponse.ok) {
                     const checkData = await checkResponse.json();
                     const existingHeaders = checkData.values?.[0] || [];
-                    console.log('📋 Existing headers:', existingHeaders);
+                    console.log('Existing headers:', existingHeaders);
                     
                     if (existingHeaders.length === 0) {
-                        console.log('⚠️ No headers found, sheet might be empty');
-                        throw new Error('📋 Google Sheets ยังไม่มีหัวตาราง\n\n💡 วิธีแก้ไข:\n1. กดปุ่ม "วิธีสร้างเทมเพลต"\n2. คัดลอกหัวตารางไปวางใน Google Sheets\n3. ลองบันทึกใหม่อีกครั้ง');
+                        console.log('No headers found, sheet might be empty');
+                        throw new Error('Google Sheets ยังไม่มีหัวตาราง\n\nวิธีแก้ไข:\n1. กดปุ่ม "วิธีสร้างเทมเพลต"\n2. คัดลอกหัวตารางไปวางใน Google Sheets\n3. ลองบันทึกใหม่อีกครั้ง');
                     }
                 }
                 
                 // Step 3: Append data
-                console.log('💾 Step 3: Appending data to sheet...');
+                console.log('Appending data to sheet...');
                 const appendUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetsId}/values/${encodeURIComponent(sheetName)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS&key=${apiKey}`;
-                console.log('🌐 Append URL:', appendUrl);
                 
                 const appendPayload = {
                     values: [rowData]
                 };
-                console.log('📦 Append payload:', JSON.stringify(appendPayload, null, 2));
+                console.log('Append payload:', JSON.stringify(appendPayload, null, 2));
                 
                 const appendResponse = await fetch(appendUrl, {
                     method: 'POST',
@@ -956,11 +1011,11 @@
                     body: JSON.stringify(appendPayload)
                 });
                 
-                console.log('📡 Append response status:', appendResponse.status);
+                console.log('Append response status:', appendResponse.status);
                 
                 if (!appendResponse.ok) {
                     const errorData = await appendResponse.text();
-                    console.error('❌ Append error response:', errorData);
+                    console.error('Append error response:', errorData);
                     
                     let parsedError;
                     try {
@@ -970,26 +1025,26 @@
                     }
                     
                     if (appendResponse.status === 400) {
-                        throw new Error('📋 รูปแบบข้อมูลไม่ถูกต้อง\n\n💡 วิธีแก้ไข:\n1. ตรวจสอบหัวตารางใน Google Sheets\n2. ลองสร้างเทมเพลตใหม่\n3. ตรวจสอบว่าไม่มีเซลล์ที่ถูก merge');
+                        throw new Error('รูปแบบข้อมูลไม่ถูกต้อง\n\nวิธีแก้ไข:\n1. ตรวจสอบหัวตารางใน Google Sheets\n2. ลองสร้างเทมเพลตใหม่\n3. ตรวจสอบว่าไม่มีเซลล์ที่ถูก merge');
                     } else if (appendResponse.status === 403) {
-                        throw new Error('🔒 ไม่มีสิทธิ์เขียนข้อมูล\n\n💡 วิธีแก้ไข:\n1. ตั้งค่าการแชร์ Google Sheets เป็น "Anyone with the link can EDIT"\n2. ตรวจสอบว่า API Key มีสิทธิ์ใช้งาน Sheets API\n3. ลองสร้าง API Key ใหม่');
+                        throw new Error('ไม่มีสิทธิ์เขียนข้อมูล\n\nวิธีแก้ไข:\n1. ตั้งค่าการแชร์ Google Sheets เป็น "Anyone with the link can EDIT"\n2. ตรวจสอบว่า API Key มีสิทธิ์ใช้งาน Sheets API\n3. ลองสร้าง API Key ใหม่');
                     } else {
-                        throw new Error(`💥 บันทึกข้อมูลไม่สำเร็จ (${appendResponse.status})\n\nรายละเอียด: ${parsedError.error?.message || 'ข้อผิดพลาดไม่ทราบสาเหตุ'}`);
+                        throw new Error(`บันทึกข้อมูลไม่สำเร็จ (${appendResponse.status})\n\nรายละเอียด: ${parsedError.error?.message || 'ข้อผิดพลาดไม่ทราบสาเหตุ'}`);
                     }
                 }
                 
                 const result = await appendResponse.json();
-                console.log('✅ Save successful! Result:', result);
-                console.log('📊 Updated range:', result.updates?.updatedRange);
-                console.log('📝 Rows added:', result.updates?.updatedRows);
+                console.log('Save successful! Result:', result);
+                console.log('Updated range:', result.updates?.updatedRange);
+                console.log('Rows added:', result.updates?.updatedRows);
                 
                 return result;
                 
             } catch (error) {
-                console.error('💥 Save error details:', error);
+                console.error('Save error details:', error);
                 
                 if (error.message.includes('Failed to fetch') || error.message.includes('NetworkError')) {
-                    throw new Error('🌐 ไม่สามารถเชื่อมต่อกับ Google Sheets ได้\n\n💡 วิธีแก้ไข:\n1. ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต\n2. ลองรีเฟรชหน้าเว็บ\n3. ตรวจสอบว่า Google Sheets API ทำงานปกติ');
+                    throw new Error('ไม่สามารถเชื่อมต่อกับ Google Sheets ได้\n\nวิธีแก้ไข:\n1. ตรวจสอบการเชื่อมต่ออินเทอร์เน็ต\n2. ลองรีเฟรชหน้าเว็บ\n3. ตรวจสอบว่า Google Sheets API ทำงานปกติ');
                 }
                 
                 // Re-throw the error with original message if it's already formatted
@@ -1443,25 +1498,12 @@
             table.appendChild(row);
         }
 
-        // Form submission
+        // Enhanced Form submission with better error handling
         document.getElementById('projectForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
             const formData = new FormData(this);
-            const data = {};
-            
-            // Convert FormData to object
-            for (let [key, value] of formData.entries()) {
-                if (data[key]) {
-                    if (Array.isArray(data[key])) {
-                        data[key].push(value);
-                    } else {
-                        data[key] = [data[key], value];
-                    }
-                } else {
-                    data[key] = value;
-                }
-            }
+            const data = collectFormData(formData);
             
             // Add signature
             if (signatureData) {
@@ -1476,10 +1518,14 @@
                 try {
                     showStatus('กำลังบันทึกข้อมูลไป Google Sheets...', 'loading');
                     await saveToGoogleSheets(data);
-                    showStatus('✅ บันทึกข้อมูลไป Google Sheets สำเร็จ!', 'success');
+                    showStatus('บันทึกข้อมูลไป Google Sheets สำเร็จ!', 'success');
                     
                     // Also save locally as backup
                     saveToStorage(data);
+                    
+                    // Clear form
+                    document.getElementById('projectForm').reset();
+                    clearSignature();
                     
                     // Refresh dashboard
                     setTimeout(() => {
@@ -1487,7 +1533,7 @@
                     }, 1000);
                     
                 } catch (error) {
-                    showStatus(`❌ ${error.message}`, 'error');
+                    showStatus(`${error.message}`, 'error');
                     // Fallback to local storage
                     saveToStorage(data);
                     alert('บันทึกข้อมูลในเครื่องเรียบร้อยแล้ว (สำรอง)');
@@ -1520,11 +1566,7 @@
         // Preview function
         function previewForm() {
             const formData = new FormData(document.getElementById('projectForm'));
-            const data = {};
-            
-            for (let [key, value] of formData.entries()) {
-                data[key] = value;
-            }
+            const data = collectFormData(formData);
             
             const previewContent = document.getElementById('previewContent');
             previewContent.innerHTML = `
@@ -1541,6 +1583,12 @@
                     <div><strong>สรุปผลการประเมิน:</strong> ${data.finalResult || '-'}</div>
                     <div><strong>ผู้รายงาน:</strong> ${data.reporterName || '-'}</div>
                     <div><strong>วันที่:</strong> ${data.reportDate || '-'}</div>
+                    ${data.kpiData && data.kpiData.length > 0 ? `
+                    <div><strong>ตัวชี้วัด:</strong>
+                        <ul class="list-disc list-inside ml-4">
+                            ${data.kpiData.map(kpi => `<li>${kpi.kpi}: ${kpi.result}/${kpi.target}% (${kpi.summary})</li>`).join('')}
+                        </ul>
+                    </div>` : ''}
                 </div>
             `;
             
@@ -1554,10 +1602,10 @@
         // PDF generation with enhanced Thai font support
         function generatePDF() {
             try {
-                console.log('🔄 Starting PDF generation...');
+                console.log('Starting PDF generation...');
                 
-                // Alternative approach: Use browser's print functionality for better Thai support
-                const shouldUseBrowserPrint = confirm('📄 สำหรับการแสดงผลภาษาไทยที่ดีที่สุด\n\nเลือกวิธีการสร้าง PDF:\n\n✅ กด "ตกลง" = ใช้ระบบพิมพ์ของเบราว์เซอร์ (แนะนำ)\n❌ กด "ยกเลิก" = ใช้ jsPDF (อาจมีปัญหาภาษาไทย)');
+                // Use browser's print functionality for better Thai support
+                const shouldUseBrowserPrint = confirm('สำหรับการแสดงผลภาษาไทยที่ดีที่สุด\n\nเลือกวิธีการสร้าง PDF:\n\nกด "ตกลง" = ใช้ระบบพิมพ์ของเบราว์เซอร์ (แนะนำ)\nกด "ยกเลิก" = ใช้ jsPDF (อาจมีปัญหาภาษาไทย)');
                 
                 if (shouldUseBrowserPrint) {
                     generatePDFViaBrowser();
@@ -1575,10 +1623,11 @@
                     compress: true
                 });
                 
-                console.log('📝 jsPDF initialized');
+                console.log('jsPDF initialized');
                 
                 // Get form data
                 const formData = new FormData(document.getElementById('projectForm'));
+                const data = collectFormData(formData);
                 
                 // Enhanced text rendering function
                 function addText(text, x, y, fontSize = 12, options = {}) {
@@ -1590,21 +1639,6 @@
                     // Handle empty text
                     if (!cleanText || cleanText === 'undefined' || cleanText === 'null') {
                         cleanText = '-';
-                    }
-                    
-                    // For Thai text, try to use Unicode escape sequences
-                    try {
-                        // Convert Thai characters to Unicode escape sequences for better compatibility
-                        cleanText = cleanText.replace(/[\u0E00-\u0E7F]/g, function(match) {
-                            return '\\u' + ('0000' + match.charCodeAt(0).toString(16)).slice(-4);
-                        });
-                        
-                        // Decode back for display (this helps with encoding issues)
-                        cleanText = cleanText.replace(/\\u[\dA-F]{4}/gi, function(match) {
-                            return String.fromCharCode(parseInt(match.replace(/\\u/g, ''), 16));
-                        });
-                    } catch (e) {
-                        console.warn('Text encoding warning:', e);
                     }
                     
                     // Split text for wrapping
@@ -1669,12 +1703,12 @@
                 yPos += 8;
                 
                 const projectFields = [
-                    ['Project Name / ชื่อโครงการ', formData.get('projectName') || '-'],
-                    ['Department / ฝ่าย', formData.get('department') || '-'],
-                    ['Strategy / กลยุทธ์', formData.get('strategy') || '-'],
-                    ['Standard / มาตรฐาน', formData.get('standard') || '-'],
-                    ['Timeline / ระยะเวลา', formData.get('timeline') || '-'],
-                    ['Responsible / ผู้รับผิดชอบ', formData.get('responsible') || '-']
+                    ['Project Name / ชื่อโครงการ', data.projectName || '-'],
+                    ['Department / ฝ่าย', data.department || '-'],
+                    ['Strategy / กลยุทธ์', data.strategy || '-'],
+                    ['Standard / มาตรฐาน', data.standard || '-'],
+                    ['Timeline / ระยะเวลา', data.timeline || '-'],
+                    ['Responsible / ผู้รับผิดชอบ', data.responsible || '-']
                 ];
                 
                 doc.setFontSize(11);
@@ -1690,20 +1724,20 @@
                 yPos += 8;
                 
                 const resultFields = [
-                    ['Timeline Status / สถานะระยะเวลา', formData.get('timelineStatus') || '-'],
-                    ['Location Suitability / ความเหมาะสมสถานที่', formData.get('locationSuitability') || '-'],
-                    ['Equipment Quantity / จำนวนอุปกรณ์', formData.get('equipmentQuantity') || '-'],
-                    ['Equipment Quality / คุณภาพอุปกรณ์', formData.get('equipmentQuality') || '-'],
-                    ['Personnel / บุคลากร', formData.get('personnelQuantity') || '-'],
-                    ['Cooperation / ความร่วมมือ', formData.get('cooperation') || '-']
+                    ['Timeline Status / สถานะระยะเวลา', data.timelineStatus || '-'],
+                    ['Location Suitability / ความเหมาะสมสถานที่', data.locationSuitability || '-'],
+                    ['Equipment Quantity / จำนวนอุปกรณ์', data.equipmentQuantity || '-'],
+                    ['Equipment Quality / คุณภาพอุปกรณ์', data.equipmentQuality || '-'],
+                    ['Personnel / บุคลากร', data.personnelQuantity || '-'],
+                    ['Cooperation / ความร่วมมือ', data.cooperation || '-']
                 ];
                 
                 // Add budget information
-                if (formData.get('budgetAllocated')) {
-                    resultFields.push(['Budget Allocated / งบประมาณจัดสรร', `${formData.get('budgetAllocated')} THB`]);
+                if (data.budgetAllocated) {
+                    resultFields.push(['Budget Allocated / งบประมาณจัดสรร', `${data.budgetAllocated} THB`]);
                 }
-                if (formData.get('budgetUsed')) {
-                    resultFields.push(['Budget Used / งบประมาณใช้', `${formData.get('budgetUsed')} THB`]);
+                if (data.budgetUsed) {
+                    resultFields.push(['Budget Used / งบประมาณใช้', `${data.budgetUsed} THB`]);
                 }
                 
                 doc.setFontSize(11);
@@ -1714,50 +1748,50 @@
                 yPos += 10;
                 
                 // Achievement
-                if (formData.get('achievement')) {
+                if (data.achievement) {
                     doc.setFontSize(14);
                     doc.text('3. Achievement / ผลสัมฤทธิ์', 20, yPos);
                     yPos += 8;
                     
                     doc.setFontSize(11);
-                    yPos = addText(`Result / ผลลัพธ์: ${formData.get('achievement')}`, 25, yPos, 11);
+                    yPos = addText(`Result / ผลลัพธ์: ${data.achievement}`, 25, yPos, 11);
                     
-                    if (formData.get('achievementDetail')) {
-                        yPos = addText(`Details / รายละเอียด: ${formData.get('achievementDetail')}`, 25, yPos + 3, 11);
+                    if (data.achievementDetail) {
+                        yPos = addText(`Details / รายละเอียด: ${data.achievementDetail}`, 25, yPos + 3, 11);
                     }
                     yPos += 10;
                 }
                 
                 // Problems
-                if (formData.get('otherProblems')) {
+                if (data.otherProblems) {
                     doc.setFontSize(14);
                     doc.text('4. Problems / ปัญหาและอุปสรรค', 20, yPos);
                     yPos += 8;
                     
                     doc.setFontSize(11);
-                    yPos = addText(formData.get('otherProblems'), 25, yPos, 11);
+                    yPos = addText(data.otherProblems, 25, yPos, 11);
                     yPos += 10;
                 }
                 
                 // Suggestions
-                if (formData.get('suggestions')) {
+                if (data.suggestions) {
                     doc.setFontSize(14);
                     doc.text('5. Suggestions / ข้อเสนอแนะ', 20, yPos);
                     yPos += 8;
                     
                     doc.setFontSize(11);
-                    yPos = addText(formData.get('suggestions'), 25, yPos, 11);
+                    yPos = addText(data.suggestions, 25, yPos, 11);
                     yPos += 10;
                 }
                 
                 // Final Result
-                if (formData.get('finalResult')) {
+                if (data.finalResult) {
                     doc.setFontSize(14);
                     doc.text('6. Final Evaluation / สรุปผลการประเมิน', 20, yPos);
                     yPos += 8;
                     
                     doc.setFontSize(12);
-                    yPos = addText(`Result / ผลการประเมิน: ${formData.get('finalResult')}`, 25, yPos, 12);
+                    yPos = addText(`Result / ผลการประเมิน: ${data.finalResult}`, 25, yPos, 12);
                     yPos += 15;
                 }
                 
@@ -1766,13 +1800,13 @@
                 doc.text('7. Reporter Signature / ลายเซ็นผู้รายงาน', 20, yPos);
                 yPos += 10;
                 
-                if (formData.get('reporterName')) {
+                if (data.reporterName) {
                     doc.setFontSize(11);
-                    yPos = addText(`Reporter Name / ชื่อผู้รายงาน: ${formData.get('reporterName')}`, 25, yPos, 11);
+                    yPos = addText(`Reporter Name / ชื่อผู้รายงาน: ${data.reporterName}`, 25, yPos, 11);
                 }
                 
-                if (formData.get('reportDate')) {
-                    const reportDate = new Date(formData.get('reportDate'));
+                if (data.reportDate) {
+                    const reportDate = new Date(data.reportDate);
                     const thaiDate = reportDate.toLocaleDateString('th-TH');
                     const engDate = reportDate.toLocaleDateString('en-US');
                     yPos = addText(`Date / วันที่: ${engDate} (${thaiDate})`, 25, yPos + 5, 11);
@@ -1794,23 +1828,24 @@
                 const date = new Date().toISOString().split('T')[0];
                 const filename = `Project_Evaluation_${date}.pdf`;
                 
-                console.log('💾 Saving PDF...');
+                console.log('Saving PDF...');
                 doc.save(filename);
                 
-                alert('✅ PDF สร้างเรียบร้อยแล้ว!\n\n📝 หมายเหตุ: jsPDF มีข้อจำกัดในการแสดงผลภาษาไทย\n\n💡 สำหรับผลลัพธ์ที่ดีที่สุด แนะนำให้ใช้ "ระบบพิมพ์ของเบราว์เซอร์" แทน');
+                alert('PDF สร้างเรียบร้อยแล้ว!\n\nหมายเหตุ: jsPDF มีข้อจำกัดในการแสดงผลภาษาไทย\n\nสำหรับผลลัพธ์ที่ดีที่สุด แนะนำให้ใช้ "ระบบพิมพ์ของเบราว์เซอร์" แทน');
                 
             } catch (error) {
                 console.error('PDF generation error:', error);
-                alert('❌ เกิดข้อผิดพลาดในการสร้าง PDF\n\n💡 ลองใช้วิธีอื่น:\n1. กดปุ่ม "ดูตัวอย่าง" แล้วใช้ Ctrl+P\n2. หรือใช้ "ระบบพิมพ์ของเบราว์เซอร์"');
+                alert('เกิดข้อผิดพลาดในการสร้าง PDF\n\nลองใช้วิธีอื่น:\n1. กดปุ่ม "ดูตัวอย่าง" แล้วใช้ Ctrl+P\n2. หรือใช้ "ระบบพิมพ์ของเบราว์เซอร์"');
             }
         }
         
         // Alternative PDF generation using browser's print functionality
         function generatePDFViaBrowser() {
-            console.log('🖨️ Using browser print for PDF generation...');
+            console.log('Using browser print for PDF generation...');
             
             // Get form data
             const formData = new FormData(document.getElementById('projectForm'));
+            const data = collectFormData(formData);
             
             // Create a new window with print-friendly content
             const printWindow = window.open('', '_blank');
@@ -1912,27 +1947,27 @@
                         <div class="section-title">1. ข้อมูลโครงการ</div>
                         <div class="field">
                             <div class="field-label">ชื่องาน/โครงการ/กิจกรรม:</div>
-                            <div class="field-value">${formData.get('projectName') || '-'}</div>
+                            <div class="field-value">${data.projectName || '-'}</div>
                         </div>
                         <div class="field">
                             <div class="field-label">ฝ่าย:</div>
-                            <div class="field-value">${formData.get('department') || '-'}</div>
+                            <div class="field-value">${data.department || '-'}</div>
                         </div>
                         <div class="field">
                             <div class="field-label">กลยุทธ์โรงเรียนข้อที่:</div>
-                            <div class="field-value">${formData.get('strategy') || '-'}</div>
+                            <div class="field-value">${data.strategy || '-'}</div>
                         </div>
                         <div class="field">
                             <div class="field-label">มาตรฐานการศึกษา สพฐ.:</div>
-                            <div class="field-value">${formData.get('standard') || '-'}</div>
+                            <div class="field-value">${data.standard || '-'}</div>
                         </div>
                         <div class="field">
                             <div class="field-label">ระยะเวลาดำเนินงาน:</div>
-                            <div class="field-value">${formData.get('timeline') || '-'}</div>
+                            <div class="field-value">${data.timeline || '-'}</div>
                         </div>
                         <div class="field">
                             <div class="field-label">ผู้รับผิดชอบ:</div>
-                            <div class="field-value">${formData.get('responsible') || '-'}</div>
+                            <div class="field-value">${data.responsible || '-'}</div>
                         </div>
                     </div>
                     
@@ -1940,81 +1975,81 @@
                         <div class="section-title">2. ผลการดำเนินงาน</div>
                         <div class="field">
                             <div class="field-label">ระยะเวลาดำเนินการ:</div>
-                            <div class="field-value">${formData.get('timelineStatus') || '-'}</div>
+                            <div class="field-value">${data.timelineStatus || '-'}</div>
                         </div>
                         <div class="field">
                             <div class="field-label">ความเหมาะสมสถานที่:</div>
-                            <div class="field-value">${formData.get('locationSuitability') || '-'}</div>
+                            <div class="field-value">${data.locationSuitability || '-'}</div>
                         </div>
                         <div class="field">
                             <div class="field-label">จำนวนเครื่องมือและอุปกรณ์:</div>
-                            <div class="field-value">${formData.get('equipmentQuantity') || '-'}</div>
+                            <div class="field-value">${data.equipmentQuantity || '-'}</div>
                         </div>
                         <div class="field">
                             <div class="field-label">คุณภาพเครื่องมือและอุปกรณ์:</div>
-                            <div class="field-value">${formData.get('equipmentQuality') || '-'}</div>
+                            <div class="field-value">${data.equipmentQuality || '-'}</div>
                         </div>
                         <div class="field">
                             <div class="field-label">จำนวนบุคลากร:</div>
-                            <div class="field-value">${formData.get('personnelQuantity') || '-'}</div>
+                            <div class="field-value">${data.personnelQuantity || '-'}</div>
                         </div>
                         <div class="field">
                             <div class="field-label">ความร่วมมือ:</div>
-                            <div class="field-value">${formData.get('cooperation') || '-'}</div>
+                            <div class="field-value">${data.cooperation || '-'}</div>
                         </div>
-                        ${formData.get('budgetAllocated') ? `
+                        ${data.budgetAllocated ? `
                         <div class="field">
                             <div class="field-label">งบประมาณจัดสรร:</div>
-                            <div class="field-value">${formData.get('budgetAllocated')} บาท</div>
+                            <div class="field-value">${data.budgetAllocated} บาท</div>
                         </div>` : ''}
-                        ${formData.get('budgetUsed') ? `
+                        ${data.budgetUsed ? `
                         <div class="field">
                             <div class="field-label">งบประมาณใช้ไป:</div>
-                            <div class="field-value">${formData.get('budgetUsed')} บาท</div>
+                            <div class="field-value">${data.budgetUsed} บาท</div>
                         </div>` : ''}
                     </div>
                     
-                    ${formData.get('achievement') ? `
+                    ${data.achievement ? `
                     <div class="section">
                         <div class="section-title">3. ผลสัมฤทธิ์ของงาน/โครงการ</div>
                         <div class="field">
                             <div class="field-label">ผลสัมฤทธิ์:</div>
-                            <div class="field-value">${formData.get('achievement')}</div>
+                            <div class="field-value">${data.achievement}</div>
                         </div>
-                        ${formData.get('achievementDetail') ? `
+                        ${data.achievementDetail ? `
                         <div class="field">
                             <div class="field-label">รายละเอียด:</div>
-                            <div class="field-value">${formData.get('achievementDetail')}</div>
+                            <div class="field-value">${data.achievementDetail}</div>
                         </div>` : ''}
                     </div>` : ''}
                     
-                    ${formData.get('otherProblems') ? `
+                    ${data.otherProblems ? `
                     <div class="section">
                         <div class="section-title">4. ปัญหาและอุปสรรค</div>
-                        <div class="field-value">${formData.get('otherProblems')}</div>
+                        <div class="field-value">${data.otherProblems}</div>
                     </div>` : ''}
                     
-                    ${formData.get('suggestions') ? `
+                    ${data.suggestions ? `
                     <div class="section">
                         <div class="section-title">5. ข้อเสนอแนะ</div>
-                        <div class="field-value">${formData.get('suggestions')}</div>
+                        <div class="field-value">${data.suggestions}</div>
                     </div>` : ''}
                     
-                    ${formData.get('finalResult') ? `
+                    ${data.finalResult ? `
                     <div class="section">
                         <div class="section-title">6. สรุปผลการประเมิน</div>
-                        <div class="field-value"><strong>${formData.get('finalResult')}</strong></div>
+                        <div class="field-value"><strong>${data.finalResult}</strong></div>
                     </div>` : ''}
                     
                     <div class="signature-section">
                         <div class="section-title">7. ลายเซ็นผู้รายงาน</div>
                         <div class="field">
                             <div class="field-label">ชื่อผู้รายงาน:</div>
-                            <div class="field-value">${formData.get('reporterName') || '-'}</div>
+                            <div class="field-value">${data.reporterName || '-'}</div>
                         </div>
                         <div class="field">
                             <div class="field-label">วันที่:</div>
-                            <div class="field-value">${formData.get('reportDate') ? new Date(formData.get('reportDate')).toLocaleDateString('th-TH', {
+                            <div class="field-value">${data.reportDate ? new Date(data.reportDate).toLocaleDateString('th-TH', {
                                 year: 'numeric',
                                 month: 'long', 
                                 day: 'numeric'
@@ -2029,12 +2064,12 @@
                     </div>
                     
                     <div class="no-print" style="text-align: center; margin-top: 30px; padding: 20px; background: #f3f4f6; border-radius: 8px;">
-                        <p><strong>📄 วิธีบันทึกเป็น PDF:</strong></p>
+                        <p><strong>วิธีบันทึกเป็น PDF:</strong></p>
                         <p>1. กด Ctrl+P (Windows) หรือ Cmd+P (Mac)</p>
                         <p>2. เลือก "Save as PDF" หรือ "บันทึกเป็น PDF"</p>
                         <p>3. กด "Save" หรือ "บันทึก"</p>
-                        <button onclick="window.print()" style="background: #2563eb; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;">🖨️ พิมพ์/บันทึก PDF</button>
-                        <button onclick="window.close()" style="background: #6b7280; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px; margin-left: 10px;">❌ ปิดหน้าต่าง</button>
+                        <button onclick="window.print()" style="background: #2563eb; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px;">พิมพ์/บันทึก PDF</button>
+                        <button onclick="window.close()" style="background: #6b7280; color: white; padding: 10px 20px; border: none; border-radius: 5px; cursor: pointer; margin-top: 10px; margin-left: 10px;">ปิดหน้าต่าง</button>
                     </div>
                 </body>
                 </html>
@@ -2048,12 +2083,12 @@
             
             // Show instructions
             setTimeout(() => {
-                alert('✅ เปิดหน้าต่างใหม่เรียบร้อยแล้ว!\n\n📄 วิธีบันทึกเป็น PDF:\n1. กด Ctrl+P (Windows) หรือ Cmd+P (Mac)\n2. เลือก "Save as PDF"\n3. กด "Save"\n\n💡 วิธีนี้จะให้ผลลัพธ์ภาษาไทยที่สวยงามที่สุด!');
+                alert('เปิดหน้าต่างใหม่เรียบร้อยแล้ว!\n\nวิธีบันทึกเป็น PDF:\n1. กด Ctrl+P (Windows) หรือ Cmd+P (Mac)\n2. เลือก "Save as PDF"\n3. กด "Save"\n\nวิธีนี้จะให้ผลลัพธ์ภาษาไทยที่สวยงามที่สุด!');
             }, 500);
         }
 
         // Initialize dashboard on load
         showDashboard();
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'97275ca8e2c67994',t:'MTc1NTc1MDI3OC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+</body>
 </html>
