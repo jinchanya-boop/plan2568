@@ -30,7 +30,7 @@
                 <div>
                     <label class="block text-sm font-medium mb-2">Google Apps Script Web App URL</label>
                     <input type="text" id="scriptUrl" class="w-full px-3 py-2 rounded-md text-gray-900" 
-                           placeholder="https://script.google.com/macros/s/AKfycbzWAOySb7zbch2bsZlk6RKN86YHGrJCFRQfDE1SYgsGx_LRlHX6EHjRxojm2ibiAUuG/exec">
+                           placeholder="https://script.google.com/macros/s/AKfycby87zjz8bvcQprTksDikgsEOAGpr1k8H41mgKBVgF-0VkOaR2fKtsZBdnsY9CwU50cCwA/exec">
                     <p class="text-xs mt-1 opacity-80">URL ของ Google Apps Script ที่ deploy แล้ว</p>
                 </div>
             </div>
@@ -821,36 +821,38 @@ function testConnection() {
             localStorage.setItem('scriptUrl', scriptUrl);
         }
 
-        function validateAndSaveURL() {
-            const scriptUrl = document.getElementById('scriptUrl').value.trim();
+        async function testScriptConnection() {
+            const scriptUrl = document.getElementById('scriptUrl').value;
             
             if (!scriptUrl) {
                 showStatus('กรุณากรอก Google Apps Script URL', 'error');
                 return;
             }
             
-            // ตรวจสอบ URL format
-            if (!scriptUrl.includes('script.google.com/macros/s/') || !scriptUrl.endsWith('/exec')) {
-                showStatus('URL ไม่ถูกต้อง กรุณาใช้ URL ที่ลงท้ายด้วย /exec', 'error');
-                return;
+            saveConfig();
+            showStatus('กำลังทดสอบการเชื่อมต่อ...', 'loading');
+            
+            try {
+                const response = await fetch(scriptUrl);
+                
+                if (response.ok) {
+                    const result = await response.json();
+                    if (result.success) {
+                        showStatus('เชื่อมต่อสำเร็จ!', 'success');
+                        isGoogleConnected = true;
+                        document.getElementById('syncStatus').classList.remove('hidden');
+                        syncFromSheets();
+                    } else {
+                        throw new Error(result.message || 'ไม่สามารถอ่านข้อมูลได้');
+                    }
+                } else {
+                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                }
+            } catch (error) {
+                showStatus(`เชื่อมต่อไม่สำเร็จ: ${error.message}`, 'error');
+                isGoogleConnected = false;
+                document.getElementById('syncStatus').classList.add('hidden');
             }
-            
-            // บันทึก URL
-            localStorage.setItem('scriptUrl', scriptUrl);
-            
-            // ตั้งสถานะว่าเชื่อมต่อได้
-            isGoogleConnected = true;
-            document.getElementById('syncStatus').classList.remove('hidden');
-            
-            showStatus('URL ถูกต้องและบันทึกแล้ว! ระบบพร้อมใช้งาน', 'success');
-            
-            // โหลดข้อมูลแดชบอร์ด
-            loadDashboardData();
-        }
-
-        // Remove the old test function that causes CORS issues
-        async function testScriptConnection() {
-            validateAndSaveURL();
         }
 
         function showScriptInstructions() {
@@ -1022,7 +1024,7 @@ function doGet(e) {
             return data;
         }
 
-        // Simple form submission method - improved encoding
+        // Simple form submission method - works without CORS issues
         function submitToGoogleScript(data) {
             const scriptUrl = document.getElementById('scriptUrl').value;
             
@@ -1031,30 +1033,13 @@ function doGet(e) {
             form.method = 'POST';
             form.action = scriptUrl;
             form.style.display = 'none';
-            form.acceptCharset = 'UTF-8';
             
-            // แปลงข้อมูลให้เป็น string ที่สะอาด
-            const cleanData = {};
-            Object.keys(data).forEach(key => {
-                let value = data[key];
-                if (typeof value === 'object') {
-                    value = JSON.stringify(value);
-                } else if (value !== null && value !== undefined) {
-                    value = String(value).trim();
-                } else {
-                    value = '';
-                }
-                cleanData[key] = value;
-            });
-            
-            // เพิ่มข้อมูลทั้งหมดเป็น hidden input แยกแต่ละฟิลด์
-            Object.keys(cleanData).forEach(key => {
-                const input = document.createElement('input');
-                input.type = 'hidden';
-                input.name = key;
-                input.value = cleanData[key];
-                form.appendChild(input);
-            });
+            // เพิ่มข้อมูลทั้งหมดเป็น hidden input
+            const jsonInput = document.createElement('input');
+            jsonInput.type = 'hidden';
+            jsonInput.name = 'data';
+            jsonInput.value = JSON.stringify(data);
+            form.appendChild(jsonInput);
             
             // เพิ่ม form ลงใน document และ submit
             document.body.appendChild(form);
@@ -1062,36 +1047,20 @@ function doGet(e) {
             
             // ลบ form ออกหลังจาก submit
             setTimeout(() => {
-                if (form.parentNode) {
-                    document.body.removeChild(form);
-                }
+                document.body.removeChild(form);
             }, 1000);
             
             return Promise.resolve({ success: true });
         }
 
-        // Sync data from Google Sheets - with better error handling
+        // Sync data from Google Sheets
         async function syncFromSheets() {
             const scriptUrl = document.getElementById('scriptUrl').value;
             
-            if (!isGoogleConnected || !scriptUrl) {
-                loadDashboardData();
-                return;
-            }
+            if (!isGoogleConnected || !scriptUrl) return;
             
             try {
-                showStatus('กำลังซิงค์ข้อมูลจาก Google Sheets...', 'loading');
-                
-                // ใช้ timeout สำหรับการ fetch
-                const controller = new AbortController();
-                const timeoutId = setTimeout(() => controller.abort(), 5000);
-                
-                const response = await fetch(scriptUrl, {
-                    signal: controller.signal,
-                    mode: 'cors'
-                });
-                
-                clearTimeout(timeoutId);
+                const response = await fetch(scriptUrl);
                 
                 if (response.ok) {
                     const result = await response.json();
@@ -1108,21 +1077,12 @@ function doGet(e) {
                         }));
                         
                         updateDashboardWithData(projects);
-                        showStatus('ซิงค์ข้อมูลสำเร็จ!', 'success');
                     } else {
-                        throw new Error('ไม่พบข้อมูลใน Google Sheets');
+                        updateDashboardWithData([]);
                     }
-                } else {
-                    throw new Error(`HTTP ${response.status}`);
                 }
             } catch (error) {
-                console.log('Sync failed, using local data:', error.message);
-                
-                // ใช้ข้อมูลจาก localStorage แทน
-                loadDashboardData();
-                
-                // แสดงสถานะแต่ไม่ error เพราะยังใช้ข้อมูลในเครื่องได้
-                showStatus('ใช้ข้อมูลในเครื่อง (ไม่สามารถซิงค์จาก Google Sheets ได้)', 'success');
+                console.error('Sync error:', error);
             }
         }
 
@@ -1146,19 +1106,15 @@ function doGet(e) {
             if (projects.length === 0) {
                 projectsList.innerHTML = '<p class="text-gray-500 text-center py-8">ยังไม่มีข้อมูลโครงการ</p>';
             } else {
-                projectsList.innerHTML = projects.slice(-10).reverse().map((project, index) => `
+                projectsList.innerHTML = projects.slice(-5).reverse().map(project => `
                     <div class="bg-white rounded-lg p-4 border border-gray-200">
                         <div class="flex justify-between items-start">
-                            <div class="flex items-start space-x-3">
-                                <input type="checkbox" class="project-checkbox mt-1" value="${index}" 
-                                       data-project='${JSON.stringify(project).replace(/'/g, "&apos;")}'>
-                                <div>
-                                    <h4 class="font-medium text-gray-900">${project.projectName || 'ไม่ระบุชื่อโครงการ'}</h4>
-                                    <p class="text-sm text-gray-600">ฝ่าย: ${project.department || 'ไม่ระบุ'}</p>
-                                    <p class="text-sm text-gray-600">ผู้รับผิดชอบ: ${project.responsible || 'ไม่ระบุ'}</p>
-                                </div>
+                            <div>
+                                <h4 class="font-medium text-gray-900">${project.projectName || 'ไม่ระบุชื่อโครงการ'}</h4>
+                                <p class="text-sm text-gray-600">ฝ่าย: ${project.department || 'ไม่ระบุ'}</p>
+                                <p class="text-sm text-gray-600">ผู้รับผิดชอบ: ${project.responsible || 'ไม่ระบุ'}</p>
                             </div>
-                            <div class="text-right space-y-2">
+                            <div class="text-right">
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                                     project.finalResult === 'บรรลุตามเป้าหมาย' ? 'bg-green-100 text-green-800' :
                                     project.finalResult === 'ไม่บรรลุตามเป้าหมาย' ? 'bg-red-100 text-red-800' :
@@ -1166,26 +1122,11 @@ function doGet(e) {
                                 }">
                                     ${project.finalResult || 'รอประเมิน'}
                                 </span>
-                                <div class="space-x-1">
-                                    <button onclick="exportSingleProjectPDF(${index})" 
-                                            class="bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded text-xs transition-colors"
-                                            title="พิมพ์ PDF">
-                                        PDF
-                                    </button>
-                                    <button onclick="viewProjectDetails(${index})" 
-                                            class="bg-gray-500 hover:bg-gray-600 text-white px-2 py-1 rounded text-xs transition-colors"
-                                            title="ดูรายละเอียด">
-                                        ดู
-                                    </button>
-                                </div>
-                                <p class="text-xs text-gray-500">${project.timestamp || project.reportDate}</p>
+                                <p class="text-xs text-gray-500 mt-1">${project.timestamp || project.reportDate}</p>
                             </div>
                         </div>
                     </div>
                 `).join('');
-                
-                // Store projects data globally for PDF export
-                window.projectsData = projects;
             }
         }
 
@@ -1614,205 +1555,9 @@ function doGet(e) {
             }
         }
 
-        // PDF Export Functions for Dashboard
-        function exportSingleProjectPDF(index) {
-            if (!window.projectsData || !window.projectsData[index]) {
-                alert('ไม่พบข้อมูลโครงการ');
-                return;
-            }
-            
-            const project = window.projectsData[index];
-            generateProjectPDF(project);
-        }
-
-        function exportSelectedProjectsPDF() {
-            const selectedCheckboxes = document.querySelectorAll('.project-checkbox:checked');
-            if (selectedCheckboxes.length === 0) {
-                alert('กรุณาเลือกโครงการที่ต้องการพิมพ์');
-                return;
-            }
-            
-            const selectedProjects = Array.from(selectedCheckboxes).map(checkbox => {
-                return JSON.parse(checkbox.getAttribute('data-project'));
-            });
-            
-            generateMultipleProjectsPDF(selectedProjects);
-        }
-
-        function exportAllProjectsPDF() {
-            if (!window.projectsData || window.projectsData.length === 0) {
-                alert('ไม่มีข้อมูลโครงการให้พิมพ์');
-                return;
-            }
-            
-            generateMultipleProjectsPDF(window.projectsData);
-        }
-
-        function generateProjectPDF(project) {
-            try {
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
-                
-                let yPos = 20;
-                const pageWidth = doc.internal.pageSize.getWidth();
-                
-                // Header
-                doc.setFontSize(16);
-                doc.text('Project Evaluation Report - Fiscal Year 2568', pageWidth / 2, yPos, { align: 'center' });
-                yPos += 8;
-                
-                doc.setFontSize(14);
-                doc.text('Sa School, Wiang Sa District, Nan Province', pageWidth / 2, yPos, { align: 'center' });
-                yPos += 15;
-                
-                // Project Information
-                doc.setFontSize(12);
-                doc.text('Project Information:', 20, yPos);
-                yPos += 8;
-                
-                doc.setFontSize(10);
-                const fields = [
-                    ['Project Name:', project.projectName || '-'],
-                    ['Department:', project.department || '-'],
-                    ['Responsible:', project.responsible || '-'],
-                    ['Final Result:', project.finalResult || '-'],
-                    ['Report Date:', project.reportDate || '-']
-                ];
-                
-                fields.forEach(([label, value]) => {
-                    doc.text(`${label} ${value}`, 25, yPos);
-                    yPos += 6;
-                });
-                
-                const filename = `Project_${project.projectName || 'Unknown'}_${new Date().toISOString().split('T')[0]}.pdf`;
-                doc.save(filename);
-                
-            } catch (error) {
-                console.error('PDF generation error:', error);
-                alert('เกิดข้อผิดพลาดในการสร้าง PDF');
-            }
-        }
-
-        function generateMultipleProjectsPDF(projects) {
-            try {
-                const { jsPDF } = window.jspdf;
-                const doc = new jsPDF();
-                
-                let yPos = 20;
-                const pageWidth = doc.internal.pageSize.getWidth();
-                const pageHeight = doc.internal.pageSize.getHeight();
-                
-                // Header
-                doc.setFontSize(16);
-                doc.text('Projects Summary Report - Fiscal Year 2568', pageWidth / 2, yPos, { align: 'center' });
-                yPos += 8;
-                
-                doc.setFontSize(14);
-                doc.text('Sa School, Wiang Sa District, Nan Province', pageWidth / 2, yPos, { align: 'center' });
-                yPos += 15;
-                
-                // Summary Statistics
-                const totalProjects = projects.length;
-                const successCount = projects.filter(p => p.finalResult === 'บรรลุตามเป้าหมาย').length;
-                const failedCount = projects.filter(p => p.finalResult === 'ไม่บรรลุตามเป้าหมาย').length;
-                const pendingCount = totalProjects - successCount - failedCount;
-                
-                doc.setFontSize(12);
-                doc.text('Summary Statistics:', 20, yPos);
-                yPos += 8;
-                
-                doc.setFontSize(10);
-                doc.text(`Total Projects: ${totalProjects}`, 25, yPos);
-                yPos += 6;
-                doc.text(`Successful: ${successCount}`, 25, yPos);
-                yPos += 6;
-                doc.text(`Failed: ${failedCount}`, 25, yPos);
-                yPos += 6;
-                doc.text(`Pending: ${pendingCount}`, 25, yPos);
-                yPos += 15;
-                
-                // Projects List
-                doc.setFontSize(12);
-                doc.text('Projects List:', 20, yPos);
-                yPos += 8;
-                
-                projects.forEach((project, index) => {
-                    if (yPos > pageHeight - 30) {
-                        doc.addPage();
-                        yPos = 20;
-                    }
-                    
-                    doc.setFontSize(10);
-                    doc.text(`${index + 1}. ${project.projectName || 'Unknown Project'}`, 25, yPos);
-                    yPos += 5;
-                    doc.text(`   Department: ${project.department || '-'}`, 25, yPos);
-                    yPos += 5;
-                    doc.text(`   Responsible: ${project.responsible || '-'}`, 25, yPos);
-                    yPos += 5;
-                    doc.text(`   Result: ${project.finalResult || 'Pending'}`, 25, yPos);
-                    yPos += 8;
-                });
-                
-                const filename = `Projects_Summary_${new Date().toISOString().split('T')[0]}.pdf`;
-                doc.save(filename);
-                
-            } catch (error) {
-                console.error('PDF generation error:', error);
-                alert('เกิดข้อผิดพลาดในการสร้าง PDF');
-            }
-        }
-
-        function viewProjectDetails(index) {
-            if (!window.projectsData || !window.projectsData[index]) {
-                alert('ไม่พบข้อมูลโครงการ');
-                return;
-            }
-            
-            const project = window.projectsData[index];
-            
-            const modal = document.createElement('div');
-            modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4';
-            
-            modal.innerHTML = `
-                <div class="bg-white rounded-lg max-w-2xl w-full max-h-screen overflow-y-auto">
-                    <div class="p-6">
-                        <div class="flex justify-between items-center mb-4">
-                            <h3 class="text-xl font-bold">รายละเอียดโครงการ</h3>
-                            <button onclick="this.closest('.fixed').remove()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
-                        </div>
-                        
-                        <div class="space-y-4">
-                            <div><strong>ชื่อโครงการ:</strong> ${project.projectName || '-'}</div>
-                            <div><strong>ฝ่าย:</strong> ${project.department || '-'}</div>
-                            <div><strong>ผู้รับผิดชอบ:</strong> ${project.responsible || '-'}</div>
-                            <div><strong>สรุปผลการประเมิน:</strong> 
-                                <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                    project.finalResult === 'บรรลุตามเป้าหมาย' ? 'bg-green-100 text-green-800' :
-                                    project.finalResult === 'ไม่บรรลุตามเป้าหมาย' ? 'bg-red-100 text-red-800' :
-                                    'bg-yellow-100 text-yellow-800'
-                                }">
-                                    ${project.finalResult || 'รอประเมิน'}
-                                </span>
-                            </div>
-                            <div><strong>วันที่บันทึก:</strong> ${project.timestamp || project.reportDate || '-'}</div>
-                        </div>
-                        
-                        <div class="mt-6 text-center space-x-2">
-                            <button onclick="generateProjectPDF(${JSON.stringify(project).replace(/"/g, '&quot;')})" 
-                                    class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg">
-                                พิมพ์ PDF
-                            </button>
-                            <button onclick="this.closest('.fixed').remove()" 
-                                    class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg">
-                                ปิด
-                            </button>
-                        </div>
-                    </div>
-                </div>
-            `;
-            
-            document.body.appendChild(modal);
-        }
+        // Initialize dashboard on load
+        showDashboard();
     </script>
 </body>
 </html>
+
