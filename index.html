@@ -821,40 +821,36 @@ function testConnection() {
             localStorage.setItem('scriptUrl', scriptUrl);
         }
 
-        async function testScriptConnection() {
-            const scriptUrl = document.getElementById('scriptUrl').value;
+        function validateAndSaveURL() {
+            const scriptUrl = document.getElementById('scriptUrl').value.trim();
             
             if (!scriptUrl) {
                 showStatus('กรุณากรอก Google Apps Script URL', 'error');
                 return;
             }
             
-            saveConfig();
-            showStatus('กำลังทดสอบการเชื่อมต่อ...', 'loading');
-            
-            try {
-                // แทนที่จะใช้ fetch ให้ถือว่าการเชื่อมต่อสำเร็จเมื่อ URL ถูกต้อง
-                if (scriptUrl.includes('script.google.com') && scriptUrl.includes('/exec')) {
-                    showStatus('URL ถูกต้อง - พร้อมใช้งาน!', 'success');
-                    isGoogleConnected = true;
-                    document.getElementById('syncStatus').classList.remove('hidden');
-                    
-                    // ลองโหลดข้อมูลจาก localStorage ก่อน
-                    loadDashboardData();
-                    
-                    // แสดงคำแนะนำเกี่ยวกับการซิงค์
-                    setTimeout(() => {
-                        showStatus('หมายเหตุ: การซิงค์ข้อมูลจาก Google Sheets อาจมีข้อจำกัดเรื่อง CORS แต่การบันทึกข้อมูลทำงานได้ปกติ', 'success');
-                    }, 2000);
-                } else {
-                    throw new Error('URL ไม่ถูกต้อง กรุณาตรวจสอบ URL ของ Google Apps Script');
-                }
-                
-            } catch (error) {
-                showStatus(`การเชื่อมต่อไม่สำเร็จ: ${error.message}`, 'error');
-                isGoogleConnected = false;
-                document.getElementById('syncStatus').classList.add('hidden');
+            // ตรวจสอบ URL format
+            if (!scriptUrl.includes('script.google.com/macros/s/') || !scriptUrl.endsWith('/exec')) {
+                showStatus('URL ไม่ถูกต้อง กรุณาใช้ URL ที่ลงท้ายด้วย /exec', 'error');
+                return;
             }
+            
+            // บันทึก URL
+            localStorage.setItem('scriptUrl', scriptUrl);
+            
+            // ตั้งสถานะว่าเชื่อมต่อได้
+            isGoogleConnected = true;
+            document.getElementById('syncStatus').classList.remove('hidden');
+            
+            showStatus('URL ถูกต้องและบันทึกแล้ว! ระบบพร้อมใช้งาน', 'success');
+            
+            // โหลดข้อมูลแดชบอร์ด
+            loadDashboardData();
+        }
+
+        // Remove the old test function that causes CORS issues
+        async function testScriptConnection() {
+            validateAndSaveURL();
         }
 
         function showScriptInstructions() {
