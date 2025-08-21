@@ -602,10 +602,14 @@
                             <div class="bg-gray-900 text-green-400 p-4 rounded text-xs overflow-x-auto font-mono">
                                 <pre>function doPost(e) {
   try {
-    const data = JSON.parse(e.postData.contents);
+    // Log ข้อมูลที่รับเข้ามา
+    console.log('Received data:', e.postData.contents);
     
-    // ระบุ Spreadsheet ID ของคุณ (แก้ไขตรงนี้)
-    const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID_HERE';
+    const data = JSON.parse(e.postData.contents);
+    console.log('Parsed data:', data);
+    
+    // แก้ไข Spreadsheet ID ตรงนี้ให้เป็นของคุณ
+    const SPREADSHEET_ID = '1hC88MRoGMYpHrwUvwS_mM9gwpJZuSBfiZqOftwVfywc';
     
     const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
     const sheet = spreadsheet.getActiveSheet();
@@ -622,41 +626,65 @@
         'ผู้รายงาน', 'วันที่รายงาน', 'KPI_Data'
       ];
       sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
+      console.log('Headers created');
     }
     
     // เตรียมข้อมูล
     const rowData = [
       new Date().toLocaleString('th-TH'),
-      data.projectName || '', data.department || '', data.strategy || '',
-      data.standard || '', data.timeline || '', data.responsible || '',
-      data.timelineStatus || '', data.locationSuitability || '',
-      data.equipmentQuantity || '', data.missingEquipment || '',
-      data.equipmentQuality || '', data.personnelQuantity || '',
-      data.cooperation || '', data.budgetAllocated || '',
-      data.budgetUsed || '', data.budgetRemaining || '',
-      data.achievement || '', data.achievementDetail || '',
-      data.quantityResult || '', data.qualityResult || '',
+      data.projectName || '', 
+      data.department || '', 
+      data.strategy || '',
+      data.standard || '', 
+      data.timeline || '', 
+      data.responsible || '',
+      data.timelineStatus || '', 
+      data.locationSuitability || '',
+      data.equipmentQuantity || '', 
+      data.missingEquipment || '',
+      data.equipmentQuality || '', 
+      data.personnelQuantity || '',
+      data.cooperation || '', 
+      data.budgetAllocated || '',
+      data.budgetUsed || '', 
+      data.budgetRemaining || '',
+      data.achievement || '', 
+      data.achievementDetail || '',
+      data.quantityResult || '', 
+      data.qualityResult || '',
       Array.isArray(data.problems) ? data.problems.join(', ') : (data.problems || ''),
-      data.otherProblems || '', data.suggestions || '',
-      data.finalResult || '', data.reporterName || '',
-      data.reportDate || '', JSON.stringify(data.kpiData || [])
+      data.otherProblems || '', 
+      data.suggestions || '',
+      data.finalResult || '', 
+      data.reporterName || '',
+      data.reportDate || '', 
+      JSON.stringify(data.kpiData || [])
     ];
     
+    console.log('Row data prepared:', rowData);
+    
+    // เพิ่มข้อมูลในแถวใหม่
     sheet.appendRow(rowData);
+    const newRow = sheet.getLastRow();
+    
+    console.log('Data saved to row:', newRow);
     
     return ContentService
       .createTextOutput(JSON.stringify({
         success: true,
         message: 'บันทึกข้อมูลสำเร็จ',
-        row: sheet.getLastRow()
+        row: newRow,
+        timestamp: new Date().toISOString()
       }))
       .setMimeType(ContentService.MimeType.JSON);
       
   } catch (error) {
+    console.error('Error in doPost:', error);
     return ContentService
       .createTextOutput(JSON.stringify({
         success: false,
-        message: 'เกิดข้อผิดพลาด: ' + error.toString()
+        message: 'เกิดข้อผิดพลาด: ' + error.toString(),
+        error: error.toString()
       }))
       .setMimeType(ContentService.MimeType.JSON);
   }
@@ -664,18 +692,26 @@
 
 function doGet(e) {
   try {
-    const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID_HERE';
+    // แก้ไข Spreadsheet ID ให้เป็นของคุณ
+    const SPREADSHEET_ID = '1hC88MRoGMYpHrwUvwS_mM9gwpJZuSBfiZqOftwVfywc';
     const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
     const sheet = spreadsheet.getActiveSheet();
-    const data = sheet.getDataRange().getValues();
+    
+    let data = [];
+    if (sheet.getLastRow() > 0) {
+      data = sheet.getDataRange().getValues();
+    }
     
     return ContentService
       .createTextOutput(JSON.stringify({
         success: true,
-        data: data
+        data: data,
+        rows: sheet.getLastRow()
       }))
       .setMimeType(ContentService.MimeType.JSON);
+      
   } catch (error) {
+    console.error('Error in doGet:', error);
     return ContentService
       .createTextOutput(JSON.stringify({
         success: false,
@@ -683,11 +719,35 @@ function doGet(e) {
       }))
       .setMimeType(ContentService.MimeType.JSON);
   }
+}
+
+// ฟังก์ชันทดสอบ
+function testConnection() {
+  try {
+    const SPREADSHEET_ID = '1hC88MRoGMYpHrwUvwS_mM9gwpJZuSBfiZqOftwVfywc';
+    const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
+    console.log('Connected to:', spreadsheet.getName());
+    return 'Connection successful to: ' + spreadsheet.getName();
+  } catch (error) {
+    console.error('Connection test failed:', error);
+    return 'Connection failed: ' + error.toString();
+  }
 }</pre>
                             </div>
                             <button onclick="copyScriptCode()" class="mt-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm">
                                 คัดลอกโค้ด
                             </button>
+                        </div>
+                        
+                        <div class="bg-orange-50 p-4 rounded-lg">
+                            <h4 class="font-semibold mb-2">ขั้นตอนการ Debug:</h4>
+                            <ol class="list-decimal list-inside space-y-2">
+                                <li>หลังจาก Deploy แล้ว ไปที่ <strong>Executions</strong> ใน Apps Script</li>
+                                <li>ลองส่งข้อมูลจากระบบ</li>
+                                <li>ดู Log ใน Executions ว่ามี error อะไรบ้าง</li>
+                                <li>ตรวจสอบว่า SPREADSHEET_ID ถูกต้อง</li>
+                                <li>ตรวจสอบสิทธิ์การเข้าถึง Google Sheets</li>
+                            </ol>
                         </div>
                         
                         <div class="bg-yellow-50 p-4 rounded-lg">
