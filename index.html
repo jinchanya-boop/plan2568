@@ -1024,7 +1024,7 @@ function doGet(e) {
             return data;
         }
 
-        // Simple form submission method - works without CORS issues
+        // Simple form submission method - improved encoding
         function submitToGoogleScript(data) {
             const scriptUrl = document.getElementById('scriptUrl').value;
             
@@ -1033,13 +1033,30 @@ function doGet(e) {
             form.method = 'POST';
             form.action = scriptUrl;
             form.style.display = 'none';
+            form.acceptCharset = 'UTF-8';
             
-            // เพิ่มข้อมูลทั้งหมดเป็น hidden input
-            const jsonInput = document.createElement('input');
-            jsonInput.type = 'hidden';
-            jsonInput.name = 'data';
-            jsonInput.value = JSON.stringify(data);
-            form.appendChild(jsonInput);
+            // แปลงข้อมูลให้เป็น string ที่สะอาด
+            const cleanData = {};
+            Object.keys(data).forEach(key => {
+                let value = data[key];
+                if (typeof value === 'object') {
+                    value = JSON.stringify(value);
+                } else if (value !== null && value !== undefined) {
+                    value = String(value).trim();
+                } else {
+                    value = '';
+                }
+                cleanData[key] = value;
+            });
+            
+            // เพิ่มข้อมูลทั้งหมดเป็น hidden input แยกแต่ละฟิลด์
+            Object.keys(cleanData).forEach(key => {
+                const input = document.createElement('input');
+                input.type = 'hidden';
+                input.name = key;
+                input.value = cleanData[key];
+                form.appendChild(input);
+            });
             
             // เพิ่ม form ลงใน document และ submit
             document.body.appendChild(form);
@@ -1047,7 +1064,9 @@ function doGet(e) {
             
             // ลบ form ออกหลังจาก submit
             setTimeout(() => {
-                document.body.removeChild(form);
+                if (form.parentNode) {
+                    document.body.removeChild(form);
+                }
             }, 1000);
             
             return Promise.resolve({ success: true });
