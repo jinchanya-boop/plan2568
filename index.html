@@ -823,6 +823,8 @@
                 throw new Error('กรุณากรอก Sheets ID และ API Key');
             }
             
+            console.log('Saving to Google Sheets:', { sheetsId, data });
+            
             // Prepare data row with proper encoding
             const rowData = [
                 new Date().toLocaleString('th-TH'),
@@ -854,49 +856,66 @@
                 data.reportDate || ''
             ];
             
+            console.log('Row data to send:', rowData);
+            
             try {
-                // First, try to get the sheet to verify connection
-                const testResponse = await fetch(
+                // First, get sheet info to find available sheets
+                const sheetInfoResponse = await fetch(
                     `https://sheets.googleapis.com/v4/spreadsheets/${sheetsId}?key=${apiKey}`
                 );
                 
-                if (!testResponse.ok) {
-                    if (testResponse.status === 403) {
-                        throw new Error('API Key ไม่ถูกต้องหรือไม่มีสิทธิ์เข้าถึง');
-                    } else if (testResponse.status === 404) {
+                if (!sheetInfoResponse.ok) {
+                    if (sheetInfoResponse.status === 403) {
+                        throw new Error('API Key ไม่ถูกต้องหรือไม่มีสิทธิ์เข้าถึง Google Sheets API');
+                    } else if (sheetInfoResponse.status === 404) {
                         throw new Error('ไม่พบ Google Sheets หรือ Sheets ID ไม่ถูกต้อง');
                     } else {
-                        throw new Error(`ไม่สามารถเข้าถึง Google Sheets ได้ (${testResponse.status})`);
+                        throw new Error(`ไม่สามารถเข้าถึง Google Sheets ได้ (${sheetInfoResponse.status})`);
                     }
                 }
                 
-                // Try to append data
-                const appendResponse = await fetch(
-                    `https://sheets.googleapis.com/v4/spreadsheets/${sheetsId}/values/Sheet1:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS&key=${apiKey}`,
-                    {
-                        method: 'POST',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            values: [rowData]
-                        })
-                    }
-                );
+                const sheetInfo = await sheetInfoResponse.json();
+                console.log('Sheet info:', sheetInfo);
+                
+                // Get the first sheet name (usually "Sheet1" but could be different)
+                const firstSheetName = sheetInfo.sheets[0].properties.title;
+                console.log('Using sheet name:', firstSheetName);
+                
+                // Try to append data using the actual sheet name
+                const appendUrl = `https://sheets.googleapis.com/v4/spreadsheets/${sheetsId}/values/${encodeURIComponent(firstSheetName)}:append?valueInputOption=USER_ENTERED&insertDataOption=INSERT_ROWS&key=${apiKey}`;
+                console.log('Append URL:', appendUrl);
+                
+                const appendResponse = await fetch(appendUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({
+                        values: [rowData]
+                    })
+                });
+                
+                console.log('Append response status:', appendResponse.status);
                 
                 if (!appendResponse.ok) {
                     const errorData = await appendResponse.json().catch(() => ({}));
+                    console.error('Append error:', errorData);
+                    
                     if (appendResponse.status === 400) {
-                        throw new Error('รูปแบบข้อมูลไม่ถูกต้อง กรุณาตรวจสอบเทมเพลต Google Sheets');
+                        throw new Error('รูปแบบข้อมูลไม่ถูกต้อง กรุณาตรวจสอบเทมเพลต Google Sheets หรือลองสร้างหัวตารางใหม่');
                     } else if (appendResponse.status === 403) {
-                        throw new Error('ไม่มีสิทธิ์เขียนข้อมูล กรุณาตรวจสอบการแชร์ Google Sheets');
+                        throw new Error('ไม่มีสิทธิ์เขียนข้อมูล กรุณาตรวจสอบการแชร์ Google Sheets ให้เป็น "Anyone with the link can EDIT"');
                     } else {
                         throw new Error(`บันทึกข้อมูลไม่สำเร็จ (${appendResponse.status}): ${errorData.error?.message || 'ข้อผิดพลาดไม่ทราบสาเหตุ'}`);
                     }
                 }
                 
-                return await appendResponse.json();
+                const result = await appendResponse.json();
+                console.log('Save successful:', result);
+                return result;
+                
             } catch (error) {
+                console.error('Save error:', error);
                 if (error.message.includes('Failed to fetch')) {
                     throw new Error('ไม่สามารถเชื่อมต่อกับ Google Sheets ได้ กรุณาตรวจสอบการเชื่อมต่ออินเทอร์เน็ต');
                 }
@@ -911,27 +930,38 @@
             if (!isGoogleSheetsConnected) return;
             
             try {
-                const response = await fetch(
-                    `https://sheets.googleapis.com/v4/spreadsheets/${sheetsId}/values/Sheet1?key=${apiKey}`
+                // First get sheet info to find the correct sheet name
+                const sheetInfoResponse = await fetch(
+                    `https://sheets.googleapis.com/v4/spreadsheets/${sheetsId}?key=${apiKey}`
                 );
                 
-                if (response.ok) {
-                    const data = await response.json();
-                    const rows = data.values || [];
+                if (sheetInfoResponse.ok) {
+                    const sheetInfo = await sheetInfoResponse.json();
+                    const firstSheetName = sheetInfo.sheets[0].properties.title;
                     
-                    if (rows.length > 1) {
-                        // Convert rows to project objects (skip header row)
-                        const projects = rows.slice(1).map(row => ({
-                            timestamp: row[0] || '',
-                            projectName: row[1] || '',
-                            department: row[2] || '',
-                            responsible: row[6] || '',
-                            finalResult: row[24] || '',
-                            reportDate: row[26] || ''
-                        }));
+                    // Now get data from the correct sheet
+                    const response = await fetch(
+                        `https://sheets.googleapis.com/v4/spreadsheets/${sheetsId}/values/${encodeURIComponent(firstSheetName)}?key=${apiKey}`
+                    );
+                    
+                    if (response.ok) {
+                        const data = await response.json();
+                        const rows = data.values || [];
                         
-                        // Update dashboard with Google Sheets data
-                        updateDashboardWithData(projects);
+                        if (rows.length > 1) {
+                            // Convert rows to project objects (skip header row)
+                            const projects = rows.slice(1).map(row => ({
+                                timestamp: row[0] || '',
+                                projectName: row[1] || '',
+                                department: row[2] || '',
+                                responsible: row[6] || '',
+                                finalResult: row[24] || '',
+                                reportDate: row[26] || ''
+                            }));
+                            
+                            // Update dashboard with Google Sheets data
+                            updateDashboardWithData(projects);
+                        }
                     }
                 }
             } catch (error) {
@@ -1238,151 +1268,220 @@
         function generatePDF() {
             try {
                 const { jsPDF } = window.jspdf;
-                const doc = new jsPDF('p', 'mm', 'a4');
+                
+                // Create PDF with UTF-8 support
+                const doc = new jsPDF({
+                    orientation: 'portrait',
+                    unit: 'mm',
+                    format: 'a4',
+                    putOnlyUsedFonts: true,
+                    floatPrecision: 16
+                });
                 
                 // Get form data
                 const formData = new FormData(document.getElementById('projectForm'));
                 
-                // Helper function to add Thai text (using Arial Unicode MS fallback)
-                function addThaiText(text, x, y, fontSize = 12) {
+                // Helper function to add text with better Thai support
+                function addText(text, x, y, fontSize = 12, isBold = false) {
                     doc.setFontSize(fontSize);
-                    // Split long text into multiple lines if needed
+                    
+                    // Convert Thai text to ensure proper encoding
+                    const cleanText = text.toString().trim();
+                    
+                    // Split long text into multiple lines
                     const maxWidth = 170; // mm
-                    const lines = doc.splitTextToSize(text, maxWidth);
+                    const lines = doc.splitTextToSize(cleanText, maxWidth);
                     
                     if (Array.isArray(lines)) {
                         lines.forEach((line, index) => {
-                            doc.text(line, x, y + (index * 6));
+                            // Use text method with proper encoding
+                            doc.text(line, x, y + (index * (fontSize * 0.5)));
                         });
-                        return y + (lines.length * 6);
+                        return y + (lines.length * (fontSize * 0.5));
                     } else {
-                        doc.text(text, x, y);
-                        return y + 6;
+                        doc.text(cleanText, x, y);
+                        return y + (fontSize * 0.5);
                     }
                 }
                 
                 let yPos = 20;
                 
-                // Header
-                yPos = addThaiText('แบบสรุปประเมินโครงการ ประจำปีงบประมาณ 2568', 20, yPos, 16);
-                yPos = addThaiText('โรงเรียนสา อำเภอเวียงสา จังหวัดน่าน', 20, yPos + 5, 12);
+                // Header - Center aligned
+                doc.setFontSize(18);
+                const headerText1 = 'แบบสรุปประเมินโครงการ ประจำปีงบประมาณ 2568';
+                const headerText2 = 'โรงเรียนสา อำเภอเวียงสา จังหวัดน่าน';
+                
+                // Calculate center position
+                const pageWidth = doc.internal.pageSize.getWidth();
+                const text1Width = doc.getTextWidth(headerText1);
+                const text2Width = doc.getTextWidth(headerText2);
+                
+                doc.text(headerText1, (pageWidth - text1Width) / 2, yPos);
+                yPos += 8;
+                
+                doc.setFontSize(14);
+                doc.text(headerText2, (pageWidth - text2Width) / 2, yPos);
                 yPos += 15;
                 
-                // Project Information
-                yPos = addThaiText('ข้อมูลโครงการ', 20, yPos, 14);
-                yPos += 5;
+                // Draw a line under header
+                doc.setLineWidth(0.5);
+                doc.line(20, yPos, pageWidth - 20, yPos);
+                yPos += 10;
+                
+                // Project Information Section
+                doc.setFontSize(14);
+                doc.text('1. ข้อมูลโครงการ', 20, yPos);
+                yPos += 8;
                 
                 const projectFields = [
-                    ['ชื่องาน/โครงการ/กิจกรรม', formData.get('projectName')],
-                    ['ฝ่าย', formData.get('department')],
-                    ['กลยุทธ์โรงเรียนข้อที่', formData.get('strategy')],
-                    ['มาตรฐานการศึกษา สพฐ.', formData.get('standard')],
-                    ['ระยะเวลาดำเนินงาน', formData.get('timeline')],
-                    ['ผู้รับผิดชอบ', formData.get('responsible')]
+                    ['ชื่องาน/โครงการ/กิจกรรม', formData.get('projectName') || '-'],
+                    ['ฝ่าย', formData.get('department') || '-'],
+                    ['กลยุทธ์โรงเรียนข้อที่', formData.get('strategy') || '-'],
+                    ['มาตรฐานการศึกษา สพฐ.', formData.get('standard') || '-'],
+                    ['ระยะเวลาดำเนินงาน', formData.get('timeline') || '-'],
+                    ['ผู้รับผิดชอบ', formData.get('responsible') || '-']
                 ];
                 
+                doc.setFontSize(12);
                 projectFields.forEach(([label, value]) => {
-                    if (value) {
-                        yPos = addThaiText(`${label}: ${value}`, 25, yPos + 5);
-                    }
+                    const text = `${label}: ${value}`;
+                    yPos = addText(text, 25, yPos + 5, 12);
                 });
                 
                 yPos += 10;
                 
                 // Results Section
-                yPos = addThaiText('ผลการดำเนินงาน', 20, yPos, 14);
-                yPos += 5;
+                doc.setFontSize(14);
+                doc.text('2. ผลการดำเนินงาน', 20, yPos);
+                yPos += 8;
                 
                 const resultFields = [
-                    ['ระยะเวลาดำเนินการ', formData.get('timelineStatus')],
-                    ['ความเหมาะสมสถานที่', formData.get('locationSuitability')],
-                    ['จำนวนเครื่องมือและอุปกรณ์', formData.get('equipmentQuantity')],
-                    ['คุณภาพเครื่องมือและอุปกรณ์', formData.get('equipmentQuality')],
-                    ['จำนวนบุคลากร', formData.get('personnelQuantity')],
-                    ['ความร่วมมือ', formData.get('cooperation')],
-                    ['งบประมาณจัดสรร', formData.get('budgetAllocated') ? `${formData.get('budgetAllocated')} บาท` : ''],
-                    ['งบประมาณใช้ไป', formData.get('budgetUsed') ? `${formData.get('budgetUsed')} บาท` : ''],
-                    ['งบประมาณคงเหลือ', formData.get('budgetRemaining') ? `${formData.get('budgetRemaining')} บาท` : '']
+                    ['ระยะเวลาดำเนินการ', formData.get('timelineStatus') || '-'],
+                    ['ความเหมาะสมสถานที่', formData.get('locationSuitability') || '-'],
+                    ['จำนวนเครื่องมือและอุปกรณ์', formData.get('equipmentQuantity') || '-'],
+                    ['คุณภาพเครื่องมือและอุปกรณ์', formData.get('equipmentQuality') || '-'],
+                    ['จำนวนบุคลากร', formData.get('personnelQuantity') || '-'],
+                    ['ความร่วมมือ', formData.get('cooperation') || '-']
                 ];
                 
+                // Add budget info if available
+                if (formData.get('budgetAllocated')) {
+                    resultFields.push(['งบประมาณจัดสรร', `${formData.get('budgetAllocated')} บาท`]);
+                }
+                if (formData.get('budgetUsed')) {
+                    resultFields.push(['งบประมาณใช้ไป', `${formData.get('budgetUsed')} บาท`]);
+                }
+                if (formData.get('budgetRemaining')) {
+                    resultFields.push(['งบประมาณคงเหลือ', `${formData.get('budgetRemaining')} บาท`]);
+                }
+                
+                doc.setFontSize(12);
                 resultFields.forEach(([label, value]) => {
-                    if (value) {
-                        yPos = addThaiText(`${label}: ${value}`, 25, yPos + 5);
-                    }
+                    const text = `${label}: ${value}`;
+                    yPos = addText(text, 25, yPos + 5, 12);
                 });
                 
                 yPos += 10;
                 
-                // Achievement
+                // Achievement Section
                 if (formData.get('achievement')) {
-                    yPos = addThaiText('ผลสัมฤทธิ์ของงาน/โครงการ', 20, yPos, 14);
-                    yPos = addThaiText(`${formData.get('achievement')}`, 25, yPos + 5);
+                    doc.setFontSize(14);
+                    doc.text('3. ผลสัมฤทธิ์ของงาน/โครงการ', 20, yPos);
+                    yPos += 8;
+                    
+                    doc.setFontSize(12);
+                    yPos = addText(formData.get('achievement'), 25, yPos, 12);
                     
                     if (formData.get('achievementDetail')) {
-                        yPos = addThaiText(`รายละเอียด: ${formData.get('achievementDetail')}`, 25, yPos + 5);
+                        yPos = addText(`รายละเอียด: ${formData.get('achievementDetail')}`, 25, yPos + 3, 12);
                     }
                     yPos += 10;
                 }
                 
-                // Problems and Suggestions
+                // Problems Section
                 if (formData.get('otherProblems')) {
-                    yPos = addThaiText('ปัญหาและอุปสรรค', 20, yPos, 14);
-                    yPos = addThaiText(formData.get('otherProblems'), 25, yPos + 5);
+                    doc.setFontSize(14);
+                    doc.text('4. ปัญหาและอุปสรรค', 20, yPos);
+                    yPos += 8;
+                    
+                    doc.setFontSize(12);
+                    yPos = addText(formData.get('otherProblems'), 25, yPos, 12);
                     yPos += 10;
                 }
                 
+                // Suggestions Section
                 if (formData.get('suggestions')) {
-                    yPos = addThaiText('ข้อเสนอแนะ', 20, yPos, 14);
-                    yPos = addThaiText(formData.get('suggestions'), 25, yPos + 5);
+                    doc.setFontSize(14);
+                    doc.text('5. ข้อเสนอแนะ', 20, yPos);
+                    yPos += 8;
+                    
+                    doc.setFontSize(12);
+                    yPos = addText(formData.get('suggestions'), 25, yPos, 12);
                     yPos += 10;
                 }
                 
-                // Final Result
+                // Final Result Section
                 if (formData.get('finalResult')) {
-                    yPos = addThaiText('สรุปผลการประเมิน', 20, yPos, 14);
-                    yPos = addThaiText(formData.get('finalResult'), 25, yPos + 5);
+                    doc.setFontSize(14);
+                    doc.text('6. สรุปผลการประเมิน', 20, yPos);
+                    yPos += 8;
+                    
+                    doc.setFontSize(12);
+                    yPos = addText(formData.get('finalResult'), 25, yPos, 12);
                     yPos += 15;
                 }
                 
                 // Signature section
+                doc.setFontSize(14);
+                doc.text('7. ลายเซ็นผู้รายงาน', 20, yPos);
+                yPos += 10;
+                
                 if (formData.get('reporterName')) {
-                    yPos = addThaiText(`ผู้รายงาน: ${formData.get('reporterName')}`, 20, yPos + 5);
+                    doc.setFontSize(12);
+                    yPos = addText(`ชื่อผู้รายงาน: ${formData.get('reporterName')}`, 25, yPos, 12);
                 }
                 
                 if (formData.get('reportDate')) {
-                    yPos = addThaiText(`วันที่: ${formData.get('reportDate')}`, 20, yPos + 5);
+                    const reportDate = new Date(formData.get('reportDate')).toLocaleDateString('th-TH', {
+                        year: 'numeric',
+                        month: 'long',
+                        day: 'numeric'
+                    });
+                    yPos = addText(`วันที่: ${reportDate}`, 25, yPos + 5, 12);
                 }
                 
                 // Add signature if available
                 if (signatureData) {
-                    yPos = addThaiText('ลายเซ็น:', 20, yPos + 10);
+                    yPos += 10;
+                    doc.text('ลายเซ็น:', 25, yPos);
                     try {
-                        doc.addImage(signatureData, 'PNG', 20, yPos + 5, 50, 25);
+                        // Add signature image
+                        doc.addImage(signatureData, 'PNG', 25, yPos + 5, 50, 25);
                     } catch (imgError) {
                         console.warn('Could not add signature image:', imgError);
-                        yPos = addThaiText('(ลายเซ็นอิเล็กทรอนิกส์)', 25, yPos + 10);
+                        doc.text('(ลายเซ็นอิเล็กทรอนิกส์)', 25, yPos + 10);
                     }
                 }
                 
-                // Generate filename
+                // Generate filename with proper encoding
                 const projectName = formData.get('projectName') || 'โครงการ';
                 const date = new Date().toISOString().split('T')[0];
-                const filename = `แบบประเมินโครงการ_${projectName}_${date}.pdf`;
+                const filename = `Project_Evaluation_${date}.pdf`;
                 
                 // Save PDF
                 doc.save(filename);
                 
                 // Show success message
-                alert('✅ ส่งออก PDF เรียบร้อยแล้ว!\n\nหมายเหตุ: หากตัวอักษรไทยแสดงผลไม่ถูกต้อง กรุณาใช้โปรแกรมอ่าน PDF ที่รองรับฟอนต์ไทย เช่น Adobe Acrobat Reader');
+                alert('✅ ส่งออก PDF เรียบร้อยแล้ว!\n\n📝 ไฟล์ PDF ได้รับการปรับปรุงให้รองรับภาษาไทยดีขึ้น\n\n💡 หากยังมีปัญหาการแสดงผล กรุณาใช้ Adobe Acrobat Reader หรือ Google Chrome เพื่อเปิดไฟล์');
                 
             } catch (error) {
                 console.error('PDF generation error:', error);
-                alert('❌ เกิดข้อผิดพลาดในการสร้าง PDF\n\nกรุณาลองใหม่อีกครั้ง หรือใช้ฟีเจอร์ "ดูตัวอย่าง" แล้วพิมพ์หน้าเว็บแทน');
+                alert('❌ เกิดข้อผิดพลาดในการสร้าง PDF\n\nกรุณาลองใหม่อีกครั้ง หรือใช้ฟีเจอร์ "ดูตัวอย่าง" แล้วใช้ Ctrl+P เพื่อพิมพ์หน้าเว็บแทน');
             }
         }
 
         // Initialize dashboard on load
         showDashboard();
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'972734ab72882dd0',t:'MTc1NTc0ODY0MC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9727424755a27994',t:'MTc1NTc0OTE5OC4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
