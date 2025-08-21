@@ -899,15 +899,39 @@
         }
 
         async function saveToGoogleSheets(data) {
-            const sheetsId = document.getElementById('sheetsId').value;
-            const apiKey = document.getElementById('apiKey').value;
-            
-            if (!sheetsId || !apiKey) {
-                throw new Error('กรุณากรอก Sheets ID และ API Key');
-            }
-            
-            console.log('Starting Google Sheets save process...');
-            console.log('Data to save:', data);
+    // ใส่ URL ของ Google Apps Script ที่ deploy แล้ว
+    const APPS_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbyj3bytkbsclnUNw9YYEwIGPB376XDYw9efsKb9JRqhwwxIOS2_yGB_kZjRS7xJqhIhWw/exec';
+    
+    console.log('Saving to Google Sheets via Apps Script...');
+    console.log('Data to save:', data);
+    
+    try {
+        const response = await fetch(APPS_SCRIPT_URL, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify(data)
+        });
+        
+        if (!response.ok) {
+            throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+        
+        const result = await response.json();
+        console.log('Save successful! Result:', result);
+        
+        if (!result.success) {
+            throw new Error(result.message);
+        }
+        
+        return result;
+        
+    } catch (error) {
+        console.error('Save error details:', error);
+        throw new Error(`บันทึกข้อมูลไม่สำเร็จ: ${error.message}`);
+    }
+}
             
             // Prepare data row with proper encoding and structure
             const rowData = [
@@ -2092,3 +2116,4 @@
     </script>
 </body>
 </html>
+
