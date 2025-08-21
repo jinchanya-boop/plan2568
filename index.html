@@ -1024,88 +1024,33 @@ function doGet(e) {
             return data;
         }
 
-        // Save to Google Apps Script with CORS handling
-        async function saveToGoogleScript(data) {
+        // Simple form submission method - works without CORS issues
+        function submitToGoogleScript(data) {
             const scriptUrl = document.getElementById('scriptUrl').value;
             
-            if (!scriptUrl) {
-                throw new Error('กรุณากรอก Google Apps Script URL');
-            }
+            // สร้าง form element
+            const form = document.createElement('form');
+            form.method = 'POST';
+            form.action = scriptUrl;
+            form.style.display = 'none';
             
-            console.log('Saving to Google Apps Script...', data);
+            // เพิ่มข้อมูลทั้งหมดเป็น hidden input
+            const jsonInput = document.createElement('input');
+            jsonInput.type = 'hidden';
+            jsonInput.name = 'data';
+            jsonInput.value = JSON.stringify(data);
+            form.appendChild(jsonInput);
             
-            try {
-                const response = await fetch(scriptUrl, {
-                    method: 'POST',
-                    mode: 'no-cors', // แก้ปัญหา CORS
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify(data)
-                });
-                
-                // เนื่องจากใช้ no-cors จะไม่สามารถอ่าน response ได้
-                // ถือว่าสำเร็จหากไม่มี error
-                console.log('Request sent successfully');
-                return { success: true, message: 'ส่งข้อมูลเรียบร้อยแล้ว' };
-                
-            } catch (error) {
-                console.error('Save error:', error);
-                throw error;
-            }
-        }
-
-        // Alternative method using iframe for better compatibility
-        async function saveToGoogleScriptAlternative(data) {
-            const scriptUrl = document.getElementById('scriptUrl').value;
+            // เพิ่ม form ลงใน document และ submit
+            document.body.appendChild(form);
+            form.submit();
             
-            return new Promise((resolve, reject) => {
-                // สร้าง form และส่งข้อมูลผ่าน iframe
-                const iframe = document.createElement('iframe');
-                iframe.style.display = 'none';
-                document.body.appendChild(iframe);
-                
-                const form = document.createElement('form');
-                form.method = 'POST';
-                form.action = scriptUrl;
-                form.target = iframe.name = 'hiddenFrame' + Date.now();
-                
-                // เพิ่มข้อมูลเป็น hidden fields
-                Object.keys(data).forEach(key => {
-                    const input = document.createElement('input');
-                    input.type = 'hidden';
-                    input.name = key;
-                    input.value = typeof data[key] === 'object' ? JSON.stringify(data[key]) : data[key];
-                    form.appendChild(input);
-                });
-                
-                document.body.appendChild(form);
-                
-                // ตั้งเวลา timeout
-                const timeout = setTimeout(() => {
-                    cleanup();
-                    resolve({ success: true, message: 'ส่งข้อมูลเรียบร้อยแล้ว' });
-                }, 3000);
-                
-                iframe.onload = () => {
-                    clearTimeout(timeout);
-                    cleanup();
-                    resolve({ success: true, message: 'บันทึกข้อมูลสำเร็จ' });
-                };
-                
-                iframe.onerror = () => {
-                    clearTimeout(timeout);
-                    cleanup();
-                    reject(new Error('เกิดข้อผิดพลาดในการส่งข้อมูล'));
-                };
-                
-                function cleanup() {
-                    if (form.parentNode) form.parentNode.removeChild(form);
-                    if (iframe.parentNode) iframe.parentNode.removeChild(iframe);
-                }
-                
-                form.submit();
-            });
+            // ลบ form ออกหลังจาก submit
+            setTimeout(() => {
+                document.body.removeChild(form);
+            }, 1000);
+            
+            return Promise.resolve({ success: true });
         }
 
         // Sync data from Google Sheets
@@ -1464,7 +1409,7 @@ function doGet(e) {
             table.appendChild(row);
         }
 
-        // Form submission with fallback methods
+        // Form submission - simplified approach
         document.getElementById('projectForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
@@ -1477,36 +1422,33 @@ function doGet(e) {
             
             data.timestamp = new Date().toISOString();
             
+            // บันทึกข้อมูลในเครื่องก่อนเสมอ
+            saveToStorage(data);
+            
             if (isGoogleConnected) {
                 try {
-                    showStatus('กำลังบันทึกข้อมูลไป Google Sheets...', 'loading');
+                    showStatus('กำลังส่งข้อมูลไป Google Sheets...', 'loading');
                     
-                    // ลองวิธีแรก (no-cors)
-                    try {
-                        await saveToGoogleScript(data);
-                        showStatus('บันทึกข้อมูลไป Google Sheets สำเร็จ!', 'success');
-                    } catch (error1) {
-                        console.log('Method 1 failed, trying alternative method...');
-                        // ลองวิธีสำรอง (iframe)
-                        await saveToGoogleScriptAlternative(data);
-                        showStatus('บันทึกข้อมูลไป Google Sheets สำเร็จ!', 'success');
-                    }
+                    // ใช้วิธีส่งข้อมูลแบบ form submission
+                    await submitToGoogleScript(data);
                     
-                    saveToStorage(data);
+                    showStatus('ส่งข้อมูลไป Google Sheets เรียบร้อยแล้ว!', 'success');
                     
+                    // ล้างฟอร์ม
                     document.getElementById('projectForm').reset();
                     clearSignature();
                     
-                    setTimeout(() => syncFromSheets(), 2000);
+                    // รีเฟรชข้อมูลหลังจาก 3 วินาที
+                    setTimeout(() => {
+                        loadDashboardData();
+                    }, 3000);
                     
                 } catch (error) {
-                    console.error('All methods failed:', error);
-                    showStatus('บันทึกข้อมูลไป Google Sheets ไม่สำเร็จ แต่บันทึกในเครื่องแล้ว', 'error');
-                    saveToStorage(data);
+                    console.error('Submit failed:', error);
+                    showStatus('ส่งข้อมูลไม่สำเร็จ แต่บันทึกในเครื่องแล้ว', 'error');
                 }
             } else {
-                saveToStorage(data);
-                alert('บันทึกข้อมูลในเครื่องเรียบร้อยแล้ว!');
+                showStatus('บันทึกข้อมูลในเครื่องเรียบร้อยแล้ว!', 'success');
                 loadDashboardData();
             }
         });
