@@ -45,7 +45,7 @@
                     🔗 ทดสอบการเชื่อมต่อ
                 </button>
                 <button onclick="createSheetsTemplate()" class="bg-blue-600 hover:bg-blue-700 px-4 py-2 rounded-md transition-colors">
-                    📋 สร้างเทมเพลต Sheets
+                    📋 วิธีสร้างเทมเพลต
                 </button>
                 <button onclick="toggleConfig()" class="bg-gray-600 hover:bg-gray-700 px-4 py-2 rounded-md transition-colors">
                     ซ่อน/แสดง การตั้งค่า
@@ -587,7 +587,7 @@
                                 <li>ตั้งค่าการแชร์เป็น "Anyone with the link can view"</li>
                                 <li>คัดลอก Sheets ID จาก URL</li>
                                 <li>ใส่ Sheets ID ในช่องด้านบน</li>
-                                <li>กดปุ่ม "สร้างเทมเพลต Sheets" เพื่อสร้างหัวตาราง</li>
+                                <li>กดปุ่ม "วิธีสร้างเทมเพลต" เพื่อดูวิธีสร้างหัวตาราง</li>
                             </ol>
                         </div>
                         
@@ -687,16 +687,13 @@
             }
         }
 
-        async function createSheetsTemplate() {
+        function createSheetsTemplate() {
             const sheetsId = document.getElementById('sheetsId').value;
-            const apiKey = document.getElementById('apiKey').value;
             
-            if (!sheetsId || !apiKey) {
-                showStatus('กรุณากรอก Sheets ID และ API Key ก่อน', 'error');
+            if (!sheetsId) {
+                showStatus('กรุณากรอก Sheets ID ก่อน', 'error');
                 return;
             }
-            
-            showStatus('กำลังสร้างเทมเพลต...', 'loading');
             
             // Headers for the spreadsheet
             const headers = [
@@ -707,29 +704,92 @@
                 'ปัญหาอื่นๆ', 'ข้อเสนอแนะ', 'สรุปผลการประเมิน', 'ผู้รายงาน', 'วันที่รายงาน'
             ];
             
-            try {
-                // Try to update the first row with headers
-                const updateResponse = await fetch(
-                    `https://sheets.googleapis.com/v4/spreadsheets/${sheetsId}/values/Sheet1!A1:AA1?valueInputOption=RAW&key=${apiKey}`,
-                    {
-                        method: 'PUT',
-                        headers: {
-                            'Content-Type': 'application/json',
-                        },
-                        body: JSON.stringify({
-                            values: [headers]
-                        })
-                    }
-                );
-                
-                if (updateResponse.ok) {
-                    showStatus('✅ สร้างเทมเพลตสำเร็จ!', 'success');
-                } else {
-                    throw new Error('ไม่สามารถสร้างเทมเพลตได้');
-                }
-            } catch (error) {
-                showStatus(`❌ สร้างเทมเพลตไม่สำเร็จ: ${error.message}`, 'error');
-            }
+            // Show template creation instructions
+            showTemplateInstructions(headers, sheetsId);
+        }
+
+        function showTemplateInstructions(headers, sheetsId) {
+            const modal = document.createElement('div');
+            modal.className = 'fixed inset-0 bg-black bg-opacity-50 z-50 flex items-center justify-center p-4';
+            modal.innerHTML = `
+                <div class="bg-white rounded-lg max-w-4xl w-full max-h-screen overflow-y-auto">
+                    <div class="p-6">
+                        <div class="flex justify-between items-center mb-4">
+                            <h3 class="text-xl font-bold">📋 วิธีสร้างเทมเพลต Google Sheets</h3>
+                            <button onclick="this.closest('.fixed').remove()" class="text-gray-500 hover:text-gray-700 text-2xl">&times;</button>
+                        </div>
+                        
+                        <div class="space-y-4">
+                            <div class="bg-blue-50 p-4 rounded-lg">
+                                <h4 class="font-semibold mb-2">🔗 ลิงก์ Google Sheets ของคุณ:</h4>
+                                <a href="https://docs.google.com/spreadsheets/d/${sheetsId}/edit" target="_blank" 
+                                   class="text-blue-600 underline break-all">
+                                   https://docs.google.com/spreadsheets/d/${sheetsId}/edit
+                                </a>
+                            </div>
+                            
+                            <div class="bg-yellow-50 p-4 rounded-lg">
+                                <h4 class="font-semibold mb-2">📝 ขั้นตอนการสร้างเทมเพลต:</h4>
+                                <ol class="list-decimal list-inside space-y-2 text-sm">
+                                    <li>คลิกลิงก์ด้านบนเพื่อเปิด Google Sheets</li>
+                                    <li>คัดลอกหัวตารางด้านล่างนี้</li>
+                                    <li>วางในแถวที่ 1 ของ Google Sheets (เริ่มจากเซลล์ A1)</li>
+                                    <li>บันทึกไฟล์</li>
+                                    <li>กลับมาทดสอบการเชื่อมต่อใหม่</li>
+                                </ol>
+                            </div>
+                            
+                            <div class="bg-green-50 p-4 rounded-lg">
+                                <h4 class="font-semibold mb-2">📊 หัวตารางที่ต้องคัดลอก:</h4>
+                                <div class="bg-white p-3 rounded border text-xs overflow-x-auto">
+                                    <div class="whitespace-nowrap font-mono">
+                                        ${headers.join('\t')}
+                                    </div>
+                                </div>
+                                <button onclick="copyHeaders()" class="mt-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm">
+                                    📋 คัดลอกหัวตาราง
+                                </button>
+                            </div>
+                            
+                            <div class="bg-red-50 p-4 rounded-lg">
+                                <h4 class="font-semibold mb-2">⚠️ หมายเหตุสำคัญ:</h4>
+                                <ul class="list-disc list-inside space-y-1 text-sm">
+                                    <li>Google Sheets ต้องตั้งค่าการแชร์เป็น "Anyone with the link can view"</li>
+                                    <li>หัวตารางต้องอยู่ในแถวที่ 1 เท่านั้น</li>
+                                    <li>ห้ามเปลี่ยนลำดับหรือชื่อคอลัมน์</li>
+                                    <li>ข้อมูลจะถูกเพิ่มในแถวใหม่โดยอัตโนมัติ</li>
+                                </ul>
+                            </div>
+                        </div>
+                        
+                        <div class="mt-6 text-center">
+                            <button onclick="this.closest('.fixed').remove()" 
+                                    class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg">
+                                เข้าใจแล้ว
+                            </button>
+                        </div>
+                    </div>
+                </div>
+            `;
+            
+            document.body.appendChild(modal);
+            
+            // Add copy function to window
+            window.copyHeaders = function() {
+                const text = headers.join('\t');
+                navigator.clipboard.writeText(text).then(() => {
+                    alert('คัดลอกหัวตารางเรียบร้อยแล้ว! ไปวางใน Google Sheets ได้เลย');
+                }).catch(() => {
+                    // Fallback for older browsers
+                    const textArea = document.createElement('textarea');
+                    textArea.value = text;
+                    document.body.appendChild(textArea);
+                    textArea.select();
+                    document.execCommand('copy');
+                    document.body.removeChild(textArea);
+                    alert('คัดลอกหัวตารางเรียบร้อยแล้ว! ไปวางใน Google Sheets ได้เลย');
+                });
+            };
         }
 
         async function saveToGoogleSheets(data) {
@@ -1174,5 +1234,5 @@
         // Initialize dashboard on load
         showDashboard();
     </script>
-<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'9726effb37307996',t:'MTc1NTc0NTgyNy4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
+<script>(function(){function c(){var b=a.contentDocument||a.contentWindow.document;if(b){var d=b.createElement('script');d.innerHTML="window.__CF$cv$params={r:'972716c336377dc0',t:'MTc1NTc0NzQxNS4wMDAwMDA='};var a=document.createElement('script');a.nonce='';a.src='/cdn-cgi/challenge-platform/scripts/jsd/main.js';document.getElementsByTagName('head')[0].appendChild(a);";b.getElementsByTagName('head')[0].appendChild(d)}}if(document.body){var a=document.createElement('iframe');a.height=1;a.width=1;a.style.position='absolute';a.style.top=0;a.style.left=0;a.style.border='none';a.style.visibility='hidden';document.body.appendChild(a);if('loading'!==document.readyState)c();else if(window.addEventListener)document.addEventListener('DOMContentLoaded',c);else{var e=document.onreadystatechange||function(){};document.onreadystatechange=function(b){e(b);'loading'!==document.readyState&&(document.onreadystatechange=e,c())}}}})();</script></body>
 </html>
