@@ -1,11 +1,16 @@
-<!DOCTYPE html>
+<button onclick="debugLocalStorage()" class="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg transition-colors">
+                        🔍 Debug ข้อมูล
+                    </button>
+                    <button onclick="clearAllData()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors">
+                        🗑️ ล้างข้อมูล
+                    </button><!DOCTYPE html>
 <html lang="th">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ระบบประเมินโครงการ - โรงเรียนสา</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script src="https://unpkg.com/jspdf@latest/dist/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -414,8 +419,12 @@
             try {
                 const projects = JSON.parse(localStorage.getItem('projects') || '[]');
                 allProjectsData = projects.map((project, index) => ({ ...project, id: index + 1 }));
+                
+                // Debug: แสดงจำนวนข้อมูลจริง
+                console.log('Actual projects in localStorage:', projects.length);
+                console.log('Projects data:', projects);
+                
                 updateDashboardWithData(allProjectsData);
-                console.log('Dashboard data loaded:', allProjectsData.length, 'projects');
             } catch (error) {
                 console.error('Error loading dashboard data:', error);
                 allProjectsData = [];
@@ -667,76 +676,138 @@
             }
         }
 
-        // PDF Generation Functions
+        // PDF Generation Functions - แก้ไขให้ใช้ jsPDF ถูกต้อง
         function generateSummaryPDF() {
             try {
+                // ตรวจสอบว่า jsPDF พร้อมใช้งาน
+                if (typeof window.jsPDF === 'undefined') {
+                    alert('กำลังโหลดไลบรารี PDF กรุณารอสักครู่แล้วลองอีกครั้ง');
+                    return;
+                }
+                
                 if (!allProjectsData || allProjectsData.length === 0) {
                     alert('ไม่มีข้อมูลโครงการสำหรับสร้างรายงาน');
                     return;
                 }
                 
-                // Simple implementation - you can enhance this
+                const { jsPDF } = window.jsPDF;
                 const doc = new jsPDF();
                 
-                // Add Thai font support (basic)
-                doc.setFontSize(16);
+                // หัวข้อรายงาน
+                doc.setFontSize(18);
                 doc.text('Project Summary Report', 20, 20);
                 
-                doc.setFontSize(12);
-                doc.text(`Total Projects: ${allProjectsData.length}`, 20, 40);
-                doc.text(`Success Projects: ${allProjectsData.filter(p => p.finalResult === 'บรรลุตามเป้าหมาย').length}`, 20, 50);
-                doc.text(`Failed Projects: ${allProjectsData.filter(p => p.finalResult === 'ไม่บรรลุตามเป้าหมาย').length}`, 20, 60);
+                doc.setFontSize(14);
+                doc.text('School: Wiangsa School, Nan Province', 20, 35);
+                doc.text(`Report Date: ${new Date().toLocaleDateString()}`, 20, 45);
                 
-                doc.save('project-summary-report.pdf');
-                alert('สร้างรายงานสรุปภาพรวม PDF สำเร็จ!');
+                // สถิติโครงการ
+                doc.setFontSize(12);
+                const successCount = allProjectsData.filter(p => p.finalResult === 'บรรลุตามเป้าหมาย').length;
+                const failedCount = allProjectsData.filter(p => p.finalResult === 'ไม่บรรลุตามเป้าหมาย').length;
+                const pendingCount = allProjectsData.length - successCount - failedCount;
+                
+                doc.text(`Total Projects: ${allProjectsData.length}`, 20, 60);
+                doc.text(`Success Projects: ${successCount}`, 20, 70);
+                doc.text(`Failed Projects: ${failedCount}`, 20, 80);
+                doc.text(`Pending Projects: ${pendingCount}`, 20, 90);
+                
+                // สถิติตามฝ่าย
+                doc.text('Department Statistics:', 20, 110);
+                const departments = ['วิชาการ', 'งบประมาณ', 'บุคคล', 'บริหารทั่วไป'];
+                let yPos = 120;
+                
+                departments.forEach(dept => {
+                    const deptProjects = allProjectsData.filter(p => p.department === dept);
+                    const deptSuccess = deptProjects.filter(p => p.finalResult === 'บรรลุตามเป้าหมาย').length;
+                    doc.text(`- ${dept}: ${deptProjects.length} projects (${deptSuccess} success)`, 25, yPos);
+                    yPos += 10;
+                });
+                
+                // รายการโครงการ
+                doc.text('Recent Projects:', 20, yPos + 10);
+                yPos += 20;
+                
+                allProjectsData.slice(-5).forEach((project, index) => {
+                    if (yPos > 270) {
+                        doc.addPage();
+                        yPos = 20;
+                    }
+                    
+                    doc.text(`${index + 1}. ${project.projectName || 'Unnamed Project'}`, 25, yPos);
+                    doc.text(`   Department: ${project.department || 'N/A'}`, 30, yPos + 7);
+                    doc.text(`   Status: ${project.finalResult || 'Pending'}`, 30, yPos + 14);
+                    yPos += 25;
+                });
+                
+                doc.save(`project-summary-${new Date().toISOString().split('T')[0]}.pdf`);
+                alert('สร้างรายงานสรุปภาพรวม PDF สำเร็จ');
             } catch (error) {
                 console.error('Error generating summary PDF:', error);
-                alert('เกิดข้อผิดพลาดในการสร้าง PDF');
+                alert('เกิดข้อผิดพลาดในการสร้าง PDF: ' + error.message);
             }
         }
 
         function generateAllProjectsPDF() {
             try {
+                if (typeof window.jsPDF === 'undefined') {
+                    alert('กำลังโหลดไลบรารี PDF กรุณารอสักครู่แล้วลองอีกครั้ง');
+                    return;
+                }
+                
                 if (!allProjectsData || allProjectsData.length === 0) {
                     alert('ไม่มีข้อมูลโครงการสำหรับสร้างรายงาน');
                     return;
                 }
                 
+                const { jsPDF } = window.jsPDF;
                 const doc = new jsPDF();
+                
                 doc.setFontSize(16);
                 doc.text('All Projects Report', 20, 20);
+                doc.text(`Total: ${allProjectsData.length} Projects`, 20, 35);
                 
-                let yPosition = 40;
+                let yPosition = 50;
                 allProjectsData.forEach((project, index) => {
-                    if (yPosition > 280) {
+                    if (yPosition > 270) {
                         doc.addPage();
                         yPosition = 20;
                     }
                     
                     doc.setFontSize(12);
                     doc.text(`${index + 1}. ${project.projectName || 'Unnamed Project'}`, 20, yPosition);
-                    doc.text(`Department: ${project.department || 'N/A'}`, 25, yPosition + 10);
-                    doc.text(`Status: ${project.finalResult || 'Pending'}`, 25, yPosition + 20);
+                    doc.setFontSize(10);
+                    doc.text(`Department: ${project.department || 'N/A'}`, 25, yPosition + 8);
+                    doc.text(`Responsible: ${project.responsible || 'N/A'}`, 25, yPosition + 16);
+                    doc.text(`Status: ${project.finalResult || 'Pending'}`, 25, yPosition + 24);
+                    doc.text(`Date: ${project.reportDate || 'N/A'}`, 25, yPosition + 32);
                     
-                    yPosition += 35;
+                    yPosition += 45;
                 });
                 
-                doc.save('all-projects-report.pdf');
-                alert('สร้างรายงานโครงการทั้งหมด PDF สำเร็จ!');
+                doc.save(`all-projects-${new Date().toISOString().split('T')[0]}.pdf`);
+                alert('สร้างรายงานโครงการทั้งหมด PDF สำเร็จ');
             } catch (error) {
                 console.error('Error generating all projects PDF:', error);
-                alert('เกิดข้อผิดพลาดในการสร้าง PDF');
+                alert('เกิดข้อผิดพลาดในการสร้าง PDF: ' + error.message);
             }
         }
 
         function generateDepartmentPDF() {
             try {
+                if (typeof window.jsPDF === 'undefined') {
+                    alert('กำลังโหลดไลบรารี PDF กรุณารอสักครู่แล้วลองอีกครั้ง');
+                    return;
+                }
+                
                 if (!allProjectsData || allProjectsData.length === 0) {
                     alert('ไม่มีข้อมูลโครงการสำหรับสร้างรายงาน');
                     return;
                 }
                 
+                const { jsPDF } = window.jsPDF;
                 const doc = new jsPDF();
+                
                 doc.setFontSize(16);
                 doc.text('Department Report', 20, 20);
                 
@@ -753,61 +824,83 @@
                     
                     doc.setFontSize(14);
                     doc.text(`Department: ${dept} (${deptProjects.length} projects)`, 20, yPosition);
-                    yPosition += 20;
+                    yPosition += 15;
                     
-                    deptProjects.forEach((project, index) => {
-                        if (yPosition > 280) {
-                            doc.addPage();
-                            yPosition = 20;
-                        }
-                        
+                    if (deptProjects.length === 0) {
                         doc.setFontSize(10);
-                        doc.text(`  ${index + 1}. ${project.projectName || 'Unnamed'}`, 25, yPosition);
-                        yPosition += 10;
-                    });
+                        doc.text('No projects in this department', 25, yPosition);
+                        yPosition += 15;
+                    } else {
+                        deptProjects.forEach((project, index) => {
+                            if (yPosition > 280) {
+                                doc.addPage();
+                                yPosition = 20;
+                            }
+                            
+                            doc.setFontSize(10);
+                            doc.text(`  ${index + 1}. ${project.projectName || 'Unnamed'} (${project.finalResult || 'Pending'})`, 25, yPosition);
+                            yPosition += 10;
+                        });
+                    }
                     
                     yPosition += 10;
                 });
                 
-                doc.save('department-report.pdf');
-                alert('สร้างรายงานตามฝ่าย PDF สำเร็จ!');
+                doc.save(`department-report-${new Date().toISOString().split('T')[0]}.pdf`);
+                alert('สร้างรายงานตามฝ่าย PDF สำเร็จ');
             } catch (error) {
                 console.error('Error generating department PDF:', error);
-                alert('เกิดข้อผิดพลาดในการสร้าง PDF');
+                alert('เกิดข้อผิดพลาดในการสร้าง PDF: ' + error.message);
             }
         }
 
         function generateProjectPDF(projectId) {
             try {
+                if (typeof window.jsPDF === 'undefined') {
+                    alert('กำลังโหลดไลบรารี PDF กรุณารอสักครู่แล้วลองอีกครั้ง');
+                    return;
+                }
+                
                 const project = allProjectsData.find(p => p.id == projectId);
                 if (!project) {
                     alert('ไม่พบข้อมูลโครงการที่เลือก');
                     return;
                 }
                 
+                const { jsPDF } = window.jsPDF;
                 const doc = new jsPDF();
+                
                 doc.setFontSize(16);
                 doc.text('Project Evaluation Report', 20, 20);
                 
                 doc.setFontSize(12);
                 doc.text(`Project Name: ${project.projectName || 'N/A'}`, 20, 40);
                 doc.text(`Department: ${project.department || 'N/A'}`, 20, 50);
-                doc.text(`Responsible: ${project.responsible || 'N/A'}`, 20, 60);
-                doc.text(`Status: ${project.finalResult || 'Pending'}`, 20, 70);
-                doc.text(`Reporter: ${project.reporterName || 'N/A'}`, 20, 80);
-                doc.text(`Date: ${project.reportDate || 'N/A'}`, 20, 90);
+                doc.text(`Strategy: ${project.strategy || 'N/A'}`, 20, 60);
+                doc.text(`Standard: ${project.standard || 'N/A'}`, 20, 70);
+                doc.text(`Timeline: ${project.timeline || 'N/A'}`, 20, 80);
+                doc.text(`Responsible: ${project.responsible || 'N/A'}`, 20, 90);
+                doc.text(`Final Result: ${project.finalResult || 'Pending'}`, 20, 100);
+                doc.text(`Reporter: ${project.reporterName || 'N/A'}`, 20, 110);
+                doc.text(`Report Date: ${project.reportDate || 'N/A'}`, 20, 120);
+                doc.text(`Timestamp: ${project.timestamp || 'N/A'}`, 20, 130);
                 
-                const fileName = `project-${project.projectName || 'unnamed'}-report.pdf`;
+                const fileName = `project-${(project.projectName || 'unnamed').replace(/[^a-zA-Z0-9]/g, '_')}-report.pdf`;
                 doc.save(fileName);
-                alert('สร้างรายงานโครงการรายบุคคล PDF สำเร็จ!');
+                alert('สร้างรายงานโครงการรายบุคคล PDF สำเร็จ');
             } catch (error) {
                 console.error('Error generating project PDF:', error);
-                alert('เกิดข้อผิดพลาดในการสร้าง PDF');
+                alert('เกิดข้อผิดพลาดในการสร้าง PDF: ' + error.message);
             }
         }
 
         function generateSingleProjectPDF() {
             try {
+                if (typeof window.jsPDF === 'undefined') {
+                    alert('กำลังโหลดไลบรารี PDF กรุณารอสักครู่แล้วลองอีกครั้ง');
+                    return;
+                }
+                
                 const formData = new FormData(document.getElementById('projectForm'));
                 const data = collectFormData(formData);
                 
@@ -816,24 +909,29 @@
                     return;
                 }
                 
+                const { jsPDF } = window.jsPDF;
                 const doc = new jsPDF();
+                
                 doc.setFontSize(16);
                 doc.text('Project Evaluation Form', 20, 20);
                 
                 doc.setFontSize(12);
                 doc.text(`Project Name: ${data.projectName || 'N/A'}`, 20, 40);
                 doc.text(`Department: ${data.department || 'N/A'}`, 20, 50);
-                doc.text(`Responsible: ${data.responsible || 'N/A'}`, 20, 60);
-                doc.text(`Status: ${data.finalResult || 'N/A'}`, 20, 70);
-                doc.text(`Reporter: ${data.reporterName || 'N/A'}`, 20, 80);
-                doc.text(`Date: ${data.reportDate || 'N/A'}`, 20, 90);
+                doc.text(`Strategy: ${data.strategy || 'N/A'}`, 20, 60);
+                doc.text(`Standard: ${data.standard || 'N/A'}`, 20, 70);
+                doc.text(`Timeline: ${data.timeline || 'N/A'}`, 20, 80);
+                doc.text(`Responsible: ${data.responsible || 'N/A'}`, 20, 90);
+                doc.text(`Final Result: ${data.finalResult || 'N/A'}`, 20, 100);
+                doc.text(`Reporter: ${data.reporterName || 'N/A'}`, 20, 110);
+                doc.text(`Report Date: ${data.reportDate || 'N/A'}`, 20, 120);
                 
-                const fileName = `form-${data.projectName || 'project'}-${new Date().toISOString().split('T')[0]}.pdf`;
+                const fileName = `form-${(data.projectName || 'project').replace(/[^a-zA-Z0-9]/g, '_')}-${new Date().toISOString().split('T')[0]}.pdf`;
                 doc.save(fileName);
-                alert('ส่งออก PDF สำเร็จ!');
+                alert('ส่งออก PDF สำเร็จ');
             } catch (error) {
                 console.error('Error generating single project PDF:', error);
-                alert('เกิดข้อผิดพลาดในการสร้าง PDF');
+                alert('เกิดข้อผิดพลาดในการสร้าง PDF: ' + error.message);
             }
         }
 
@@ -887,7 +985,7 @@
             }
         });
 
-        // Sync Functions (placeholder)
+        // Sync Functions (placeholder) + Debug functions
         function syncFromSheets() {
             console.log('Sync from sheets called');
             alert('ฟีเจอร์นี้จะใช้งานได้เมื่อตั้งค่า Google Apps Script แล้ว');
