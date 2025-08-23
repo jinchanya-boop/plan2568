@@ -91,15 +91,15 @@
 
     <!-- Dashboard Section -->
     <div id="dashboard" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
-            <div class="flex justify-between items-center mb-6">
-                <h2 class="text-2xl font-bold text-gray-900">📊 แดชบอร์ดสถิติการส่งแบบประเมิน</h2>
-                <div class="flex gap-3">
-                    <button onclick="syncFromSheets()" class="bg-purple-600 hover:bg-purple-700 text-white px-4 py-2 rounded-lg transition-colors">
+                    <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+            <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
+                <h2 class="text-2xl font-bold text-gray-900">แดชบอร์ดสถิติการส่งแบบประเมิน</h2>
+                <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
+                    <button onclick="syncFromSheets()" class="bg-purple-600 hover:bg-purple-700 text-white px-6 py-3 rounded-lg transition-colors font-medium">
                         🔄 ซิงค์ข้อมูล
                     </button>
-                    <button onclick="showPDFExports()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors">
-                        📄 ส่งออก PDF
+                    <button onclick="showPDFExports()" class="bg-red-600 hover:bg-red-700 text-white px-6 py-3 rounded-lg transition-colors font-medium text-lg">
+                        📄 ส่งออกรายงาน PDF
                     </button>
                 </div>
             </div>
