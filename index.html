@@ -1238,12 +1238,23 @@ function doGet(e) {
             }
         }
 
-        // Enhanced PDF Generation Functions with Thai font support
+        // Enhanced PDF Generation Functions with error handling
+        function checkPDFLibraries() {
+            if (typeof html2canvas === 'undefined') {
+                alert('กำลังโหลด html2canvas library... กรุณาลองใหม่ในอีกสักครู่');
+                return false;
+            }
+            if (typeof window.jspdf === 'undefined') {
+                alert('กำลังโหลด jsPDF library... กรุณาลองใหม่ในอีกสักครู่');
+                return false;
+            }
+            return true;
+        }
+
         function generateSummaryPDF() {
+            if (!checkPDFLibraries()) return;
+            
             try {
-                const { jsPDF } = window.jspdf;
-                
-                // Create a temporary div with the content we want to convert to PDF
                 const tempDiv = document.createElement('div');
                 tempDiv.style.padding = '40px';
                 tempDiv.style.fontFamily = 'Sarabun, sans-serif';
@@ -1251,6 +1262,9 @@ function doGet(e) {
                 tempDiv.style.fontSize = '14px';
                 tempDiv.style.lineHeight = '1.6';
                 tempDiv.style.color = 'black';
+                tempDiv.style.position = 'absolute';
+                tempDiv.style.left = '-9999px';
+                tempDiv.style.top = '0';
                 
                 tempDiv.innerHTML = `
                     <div style="text-align: center; margin-bottom: 30px;">
@@ -1273,81 +1287,63 @@ function doGet(e) {
                         </div>
                     </div>
                     
-                    <div style="margin-bottom: 30px;">
-                        <h3 style="font-size: 20px; font-weight: bold; margin-bottom: 15px; color: #059669;">สถิติแยกตามฝ่าย</h3>
-                        ${['วิชาการ', 'งบประมาณ', 'บุคคล', 'บริหารทั่วไป'].map(dept => {
-                            const deptProjects = allProjectsData.filter(p => p.department === dept);
-                            const successCount = deptProjects.filter(p => p.finalResult === 'บรรลุตามเป้าหมาย').length;
-                            const successRate = deptProjects.length > 0 ? ((successCount / deptProjects.length) * 100).toFixed(1) : 0;
-                            
-                            return `
-                                <div style="background: #f9fafb; padding: 12px; margin-bottom: 8px; border-radius: 6px; border-left: 4px solid #059669;">
-                                    <p style="margin: 0;"><strong>ฝ่าย${dept}:</strong> ${deptProjects.length} โครงการ (ความสำเร็จ ${successRate}%)</p>
-                                </div>
-                            `;
-                        }).join('')}
-                    </div>
-                    
-                    <div>
-                        <h3 style="font-size: 20px; font-weight: bold; margin-bottom: 15px; color: #dc2626;">โครงการล่าสุด</h3>
-                        ${allProjectsData.slice(-5).reverse().map(project => `
-                            <div style="background: #fef2f2; padding: 15px; margin-bottom: 10px; border-radius: 6px; border-left: 4px solid #dc2626;">
-                                <h4 style="font-weight: bold; margin-bottom: 8px;">${project.projectName}</h4>
-                                <p style="margin: 3px 0;"><strong>ฝ่าย:</strong> ${project.department}</p>
-                                <p style="margin: 3px 0;"><strong>ผู้รับผิดชอบ:</strong> ${project.responsible}</p>
-                                <p style="margin: 3px 0;"><strong>สถานะ:</strong> ${project.finalResult || 'รอประเมิน'}</p>
-                                <p style="margin: 3px 0; font-size: 12px; color: #666;"><strong>วันที่:</strong> ${project.reportDate}</p>
-                            </div>
-                        `).join('')}
-                    </div>
-                    
                     <div style="margin-top: 40px; text-align: center; font-size: 12px; color: #666;">
                         <p>สร้างเมื่อ: ${new Date().toLocaleString('th-TH')}</p>
                     </div>
                 `;
                 
-                // Add to body temporarily
                 document.body.appendChild(tempDiv);
                 
-                // Use html2canvas to convert to image, then to PDF
-                html2canvas(tempDiv, {
-                    scale: 2,
-                    useCORS: true,
-                    allowTaint: true,
-                    backgroundColor: '#ffffff'
-                }).then(canvas => {
-                    document.body.removeChild(tempDiv);
-                    
-                    const imgData = canvas.toDataURL('image/png');
-                    const pdf = new jsPDF('p', 'mm', 'a4');
-                    
-                    const imgWidth = 210; // A4 width in mm
-                    const pageHeight = 295; // A4 height in mm
-                    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-                    let heightLeft = imgHeight;
-                    
-                    let position = 0;
-                    
-                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-                    heightLeft -= pageHeight;
-                    
-                    while (heightLeft >= 0) {
-                        position = heightLeft - imgHeight;
-                        pdf.addPage();
-                        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-                        heightLeft -= pageHeight;
-                    }
-                    
-                    pdf.save(`รายงานสรุปภาพรวม_${new Date().toISOString().split('T')[0]}.pdf`);
-                });
+                // Show loading message
+                const loadingMsg = document.createElement('div');
+                loadingMsg.id = 'pdf-loading';
+                loadingMsg.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10000; text-align: center;';
+                loadingMsg.innerHTML = '<p style="margin: 0; font-family: Sarabun, sans-serif;">กำลังสร้าง PDF...</p>';
+                document.body.appendChild(loadingMsg);
+                
+                setTimeout(() => {
+                    html2canvas(tempDiv, {
+                        scale: 2,
+                        useCORS: true,
+                        allowTaint: true,
+                        backgroundColor: '#ffffff'
+                    }).then(canvas => {
+                        document.body.removeChild(tempDiv);
+                        document.body.removeChild(loadingMsg);
+                        
+                        const { jsPDF } = window.jspdf;
+                        const imgData = canvas.toDataURL('image/png');
+                        const pdf = new jsPDF('p', 'mm', 'a4');
+                        
+                        const imgWidth = 210;
+                        const pageHeight = 295;
+                        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                        
+                        pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+                        
+                        pdf.save(`รายงานสรุปภาพรวม_${new Date().toISOString().split('T')[0]}.pdf`);
+                    }).catch(error => {
+                        document.body.removeChild(tempDiv);
+                        document.body.removeChild(loadingMsg);
+                        console.error('Canvas error:', error);
+                        alert('เกิดข้อผิดพลาดในการสร้าง PDF');
+                    });
+                }, 100);
                 
             } catch (error) {
                 console.error('PDF generation error:', error);
-                alert('เกิดข้อผิดพลาดในการสร้าง PDF');
+                alert('เกิดข้อผิดพลาดในการสร้าง PDF: ' + error.message);
             }
         }
 
         function generateAllProjectsPDF() {
+            if (!checkPDFLibraries()) return;
+            
+            if (allProjectsData.length === 0) {
+                alert('ไม่มีข้อมูลโครงการสำหรับส่งออก');
+                return;
+            }
+            
             try {
                 const tempDiv = document.createElement('div');
                 tempDiv.style.padding = '40px';
@@ -1356,6 +1352,9 @@ function doGet(e) {
                 tempDiv.style.fontSize = '14px';
                 tempDiv.style.lineHeight = '1.6';
                 tempDiv.style.color = 'black';
+                tempDiv.style.position = 'absolute';
+                tempDiv.style.left = '-9999px';
+                tempDiv.style.top = '0';
                 
                 tempDiv.innerHTML = `
                     <div style="text-align: center; margin-bottom: 30px;">
@@ -1364,9 +1363,9 @@ function doGet(e) {
                         <p style="font-size: 16px;">ปีงบประมาณ 2568</p>
                     </div>
                     
-                    ${allProjectsData.map((project, index) => `
-                        <div style="background: #f9fafb; padding: 20px; margin-bottom: 20px; border-radius: 8px; border: 1px solid #e5e7eb;">
-                            <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #1f2937;">${index + 1}. ${project.projectName}</h3>
+                    ${allProjectsData.slice(0, 10).map((project, index) => `
+                        <div style="background: #f9fafb; padding: 20px; margin-bottom: 20px; border-radius: 8px; border: 1px solid #e5e7eb; page-break-inside: avoid;">
+                            <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #1f2937;">${index + 1}. ${project.projectName || 'ไม่ระบุชื่อโครงการ'}</h3>
                             
                             <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
                                 <div>
@@ -1380,72 +1379,74 @@ function doGet(e) {
                                     <p style="margin: 5px 0;"><strong>ผู้รายงาน:</strong> ${project.reporterName || '-'}</p>
                                 </div>
                             </div>
-                            
-                            ${project.suggestions ? `
-                                <div style="background: #fef3c7; padding: 10px; border-radius: 6px; margin-top: 10px;">
-                                    <p style="margin: 0;"><strong>ข้อเสนอแนะ:</strong> ${project.suggestions}</p>
-                                </div>
-                            ` : ''}
-                            
-                            ${project.kpiData && project.kpiData.length > 0 ? `
-                                <div style="margin-top: 15px;">
-                                    <h4 style="font-weight: bold; margin-bottom: 8px;">ตัวชี้วัดความสำเร็จ:</h4>
-                                    ${project.kpiData.map(kpi => `
-                                        <div style="background: white; padding: 8px; margin-bottom: 5px; border-radius: 4px;">
-                                            <p style="margin: 0;">${kpi.kpi}: เป้าหมาย ${kpi.target}%, ผลลัพธ์ ${kpi.result}% (${kpi.summary})</p>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                            ` : ''}
                         </div>
                     `).join('')}
                     
                     <div style="margin-top: 40px; text-align: center; font-size: 12px; color: #666;">
                         <p>สร้างเมื่อ: ${new Date().toLocaleString('th-TH')}</p>
+                        ${allProjectsData.length > 10 ? `<p>แสดง 10 โครงการแรกจากทั้งหมด ${allProjectsData.length} โครงการ</p>` : ''}
                     </div>
                 `;
                 
                 document.body.appendChild(tempDiv);
                 
-                html2canvas(tempDiv, {
-                    scale: 2,
-                    useCORS: true,
-                    allowTaint: true,
-                    backgroundColor: '#ffffff'
-                }).then(canvas => {
-                    document.body.removeChild(tempDiv);
-                    
-                    const imgData = canvas.toDataURL('image/png');
-                    const pdf = new jsPDF('p', 'mm', 'a4');
-                    
-                    const imgWidth = 210;
-                    const pageHeight = 295;
-                    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-                    let heightLeft = imgHeight;
-                    
-                    let position = 0;
-                    
-                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-                    heightLeft -= pageHeight;
-                    
-                    while (heightLeft >= 0) {
-                        position = heightLeft - imgHeight;
-                        pdf.addPage();
+                const loadingMsg = document.createElement('div');
+                loadingMsg.id = 'pdf-loading';
+                loadingMsg.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10000; text-align: center;';
+                loadingMsg.innerHTML = '<p style="margin: 0; font-family: Sarabun, sans-serif;">กำลังสร้าง PDF...</p>';
+                document.body.appendChild(loadingMsg);
+                
+                setTimeout(() => {
+                    html2canvas(tempDiv, {
+                        scale: 2,
+                        useCORS: true,
+                        allowTaint: true,
+                        backgroundColor: '#ffffff'
+                    }).then(canvas => {
+                        document.body.removeChild(tempDiv);
+                        document.body.removeChild(loadingMsg);
+                        
+                        const { jsPDF } = window.jspdf;
+                        const imgData = canvas.toDataURL('image/png');
+                        const pdf = new jsPDF('p', 'mm', 'a4');
+                        
+                        const imgWidth = 210;
+                        const pageHeight = 295;
+                        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                        let heightLeft = imgHeight;
+                        let position = 0;
+                        
                         pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
                         heightLeft -= pageHeight;
-                    }
-                    
-                    pdf.save(`รายงานโครงการทั้งหมด_${new Date().toISOString().split('T')[0]}.pdf`);
-                });
+                        
+                        while (heightLeft >= 0) {
+                            position = heightLeft - imgHeight;
+                            pdf.addPage();
+                            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                            heightLeft -= pageHeight;
+                        }
+                        
+                        pdf.save(`รายงานโครงการทั้งหมด_${new Date().toISOString().split('T')[0]}.pdf`);
+                    }).catch(error => {
+                        document.body.removeChild(tempDiv);
+                        document.body.removeChild(loadingMsg);
+                        console.error('Canvas error:', error);
+                        alert('เกิดข้อผิดพลาดในการสร้าง PDF');
+                    });
+                }, 100);
                 
             } catch (error) {
                 console.error('PDF generation error:', error);
-                alert('เกิดข้อผิดพลาดในการสร้าง PDF');
+                alert('เกิดข้อผิดพลาดในการสร้าง PDF: ' + error.message);
             }
         }
 
         function generateDepartmentPDF() {
+            if (!checkPDFLibraries()) return;
+            
             try {
+                const departments = ['วิชาการ', 'งบประมาณ', 'บุคคล', 'บริหารทั่วไป'];
+                
                 const tempDiv = document.createElement('div');
                 tempDiv.style.padding = '40px';
                 tempDiv.style.fontFamily = 'Sarabun, sans-serif';
@@ -1453,8 +1454,9 @@ function doGet(e) {
                 tempDiv.style.fontSize = '14px';
                 tempDiv.style.lineHeight = '1.6';
                 tempDiv.style.color = 'black';
-                
-                const departments = ['วิชาการ', 'งบประมาณ', 'บุคคล', 'บริหารทั่วไป'];
+                tempDiv.style.position = 'absolute';
+                tempDiv.style.left = '-9999px';
+                tempDiv.style.top = '0';
                 
                 tempDiv.innerHTML = `
                     <div style="text-align: center; margin-bottom: 30px;">
@@ -1472,21 +1474,20 @@ function doGet(e) {
                             <div style="margin-bottom: 40px; page-break-inside: avoid;">
                                 <div style="background: linear-gradient(135deg, #3b82f6, #1e40af); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
                                     <h2 style="font-size: 22px; font-weight: bold; margin-bottom: 10px;">ฝ่าย${dept}</h2>
-                                    <p style="font-size: 16px; margin: 0;">จำนวนโครงการ: ${deptProjects.length} โครงการ | อัตราความสำเร็จ: ${successRate}% (${successCount}/${deptProjects.length})</p>
+                                    <p style="font-size: 16px; margin: 0;">จำนวนโครงการ: ${deptProjects.length} โครงการ | อัตราความสำเร็จ: ${successRate}%</p>
                                 </div>
                                 
                                 ${deptProjects.length === 0 ? `
                                     <div style="text-align: center; padding: 40px; background: #f3f4f6; border-radius: 8px; color: #6b7280;">
                                         <p style="font-size: 16px; margin: 0;">ไม่มีโครงการในฝ่ายนี้</p>
                                     </div>
-                                ` : deptProjects.map((project, index) => `
-                                    <div style="background: white; padding: 15px; margin-bottom: 15px; border-radius: 6px; border-left: 5px solid #3b82f6; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                ` : deptProjects.slice(0, 5).map((project, index) => `
+                                    <div style="background: white; padding: 15px; margin-bottom: 15px; border-radius: 6px; border-left: 5px solid #3b82f6;">
                                         <h3 style="font-weight: bold; margin-bottom: 10px; color: #1f2937;">${index + 1}. ${project.projectName}</h3>
                                         <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
                                             <p style="margin: 3px 0;"><strong>ผู้รับผิดชอบ:</strong> ${project.responsible || '-'}</p>
                                             <p style="margin: 3px 0;"><strong>สถานะ:</strong> ${project.finalResult || 'รอประเมิน'}</p>
                                         </div>
-                                        ${project.timeline ? `<p style="margin: 3px 0; font-size: 12px; color: #6b7280;"><strong>ระยะเวลา:</strong> ${project.timeline}</p>` : ''}
                                     </div>
                                 `).join('')}
                             </div>
@@ -1500,44 +1501,70 @@ function doGet(e) {
                 
                 document.body.appendChild(tempDiv);
                 
-                html2canvas(tempDiv, {
-                    scale: 2,
-                    useCORS: true,
-                    allowTaint: true,
-                    backgroundColor: '#ffffff'
-                }).then(canvas => {
-                    document.body.removeChild(tempDiv);
-                    
-                    const imgData = canvas.toDataURL('image/png');
-                    const pdf = new jsPDF('p', 'mm', 'a4');
-                    
-                    const imgWidth = 210;
-                    const pageHeight = 295;
-                    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-                    let heightLeft = imgHeight;
-                    
-                    let position = 0;
-                    
-                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-                    heightLeft -= pageHeight;
-                    
-                    while (heightLeft >= 0) {
-                        position = heightLeft - imgHeight;
-                        pdf.addPage();
+                const loadingMsg = document.createElement('div');
+                loadingMsg.id = 'pdf-loading';
+                loadingMsg.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10000; text-align: center;';
+                loadingMsg.innerHTML = '<p style="margin: 0; font-family: Sarabun, sans-serif;">กำลังสร้าง PDF...</p>';
+                document.body.appendChild(loadingMsg);
+                
+                setTimeout(() => {
+                    html2canvas(tempDiv, {
+                        scale: 2,
+                        useCORS: true,
+                        allowTaint: true,
+                        backgroundColor: '#ffffff'
+                    }).then(canvas => {
+                        document.body.removeChild(tempDiv);
+                        document.body.removeChild(loadingMsg);
+                        
+                        const { jsPDF } = window.jspdf;
+                        const imgData = canvas.toDataURL('image/png');
+                        const pdf = new jsPDF('p', 'mm', 'a4');
+                        
+                        const imgWidth = 210;
+                        const pageHeight = 295;
+                        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                        let heightLeft = imgHeight;
+                        let position = 0;
+                        
                         pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
                         heightLeft -= pageHeight;
-                    }
-                    
-                    pdf.save(`รายงานตามฝ่าย_${new Date().toISOString().split('T')[0]}.pdf`);
-                });
+                        
+                        while (heightLeft >= 0) {
+                            position = heightLeft - imgHeight;
+                            pdf.addPage();
+                            pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
+                            heightLeft -= pageHeight;
+                        }
+                        
+                        pdf.save(`รายงานตามฝ่าย_${new Date().toISOString().split('T')[0]}.pdf`);
+                    }).catch(error => {
+                        document.body.removeChild(tempDiv);
+                        document.body.removeChild(loadingMsg);
+                        console.error('Canvas error:', error);
+                        alert('เกิดข้อผิดพลาดในการสร้าง PDF');
+                    });
+                }, 100);
                 
             } catch (error) {
                 console.error('PDF generation error:', error);
-                alert('เกิดข้อผิดพลาดในการสร้าง PDF');
+                alert('เกิดข้อผิดพลาดในการสร้าง PDF: ' + error.message);
             }
         }
 
+        function generateProjectPDF(projectId) {
+            const project = allProjectsData.find(p => p.id === projectId);
+            if (!project) {
+                alert('ไม่พบข้อมูลโครงการ');
+                return;
+            }
+            
+            generateDetailedProjectPDF(project);
+        }
+
         function generateDetailedProjectPDF(data) {
+            if (!checkPDFLibraries()) return;
+            
             try {
                 const tempDiv = document.createElement('div');
                 tempDiv.style.padding = '40px';
@@ -1546,6 +1573,9 @@ function doGet(e) {
                 tempDiv.style.fontSize = '14px';
                 tempDiv.style.lineHeight = '1.6';
                 tempDiv.style.color = 'black';
+                tempDiv.style.position = 'absolute';
+                tempDiv.style.left = '-9999px';
+                tempDiv.style.top = '0';
                 
                 tempDiv.innerHTML = `
                     <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #3b82f6; padding-bottom: 20px;">
@@ -1560,97 +1590,84 @@ function doGet(e) {
                         </div>
                         
                         <div style="background: #f8fafc; padding: 20px; border-radius: 8px; border: 1px solid #e2e8f0;">
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
-                                <div>
-                                    <p style="margin: 8px 0;"><strong>ชื่องาน/โครงการ/กิจกรรม:</strong><br>${data.projectName || '-'}</p>
-                                    <p style="margin: 8px 0;"><strong>ฝ่าย:</strong> ${data.department || '-'}</p>
-                                    <p style="margin: 8px 0;"><strong>กลยุทธ์โรงเรียนข้อที่:</strong> ${data.strategy || '-'}</p>
-                                </div>
-                                <div>
-                                    <p style="margin: 8px 0;"><strong>มาตรฐานการศึกษา สพฐ.:</strong> ${data.standard || '-'}</p>
-                                    <p style="margin: 8px 0;"><strong>ระยะเวลาดำเนินงาน:</strong> ${data.timeline || '-'}</p>
-                                    <p style="margin: 8px 0;"><strong>ผู้รับผิดชอบ:</strong> ${data.responsible || '-'}</p>
-                                </div>
+                            <div style="margin-bottom: 15px;">
+                                <p style="margin: 8px 0;"><strong>ชื่องาน/โครงการ/กิจกรรม:</strong><br>${data.projectName || '-'}</p>
+                                <p style="margin: 8px 0;"><strong>ฝ่าย:</strong> ${data.department || '-'}</p>
+                                <p style="margin: 8px 0;"><strong>ผู้รับผิดชอบ:</strong> ${data.responsible || '-'}</p>
+                                <p style="margin: 8px 0;"><strong>ระยะเวลาดำเนินงาน:</strong> ${data.timeline || '-'}</p>
                             </div>
                         </div>
                     </div>
                     
                     <div style="margin-bottom: 30px;">
-                        <div style="background: #059669; color: white; padding: 15px; border-radius: 8px; margin-bottom: 20px;">
-                            <h2 style="font-size: 20px; font-weight: bold; margin: 0;">5. ผลการดำเนินงาน</h2>
-                        </div>
-                        
-                        <div style="background: #f0fdf4; padding: 20px; border-radius: 8px; border: 1px solid #bbf7d0; margin-bottom: 20px;">
-                            <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #065f46;">5.1 ด้านปัจจัย</h3>
-                            
-                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px;">
-                                <div>
-                                    <p style="margin: 5px 0;"><strong>5.1.1 ระยะเวลาดำเนินการ:</strong> ${data.timelineStatus || '-'}</p>
-                                    <p style="margin: 5px 0;"><strong>5.1.2 ความเหมาะสมสถานที่:</strong> ${data.locationSuitability || '-'}</p>
-                                    <p style="margin: 5px 0;"><strong>5.1.3 จำนวนเครื่องมือและอุปกรณ์:</strong> ${data.equipmentQuantity || '-'}</p>
-                                    ${data.missingEquipment ? `<p style="margin: 5px 0; font-size: 12px; color: #dc2626;"><strong>อุปกรณ์ที่ขาด:</strong> ${data.missingEquipment}</p>` : ''}
-                                </div>
-                                <div>
-                                    <p style="margin: 5px 0;"><strong>5.1.4 คุณภาพอุปกรณ์:</strong> ${data.equipmentQuality || '-'}</p>
-                                    <p style="margin: 5px 0;"><strong>5.1.5 จำนวนบุคลากร:</strong> ${data.personnelQuantity || '-'}</p>
-                                    <p style="margin: 5px 0;"><strong>5.1.6 ความร่วมมือ:</strong> ${data.cooperation || '-'}</p>
-                                </div>
-                            </div>
-                            
-                            <div style="background: white; padding: 15px; border-radius: 6px; margin-top: 15px;">
-                                <h4 style="font-weight: bold; margin-bottom: 8px;">5.1.7 การใช้จ่ายงบประมาณ</h4>
-                                <div style="display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 10px;">
-                                    <p style="margin: 0;"><strong>ได้รับจัดสรร:</strong> ${data.budgetAllocated || 0} บาท</p>
-                                    <p style="margin: 0;"><strong>ใช้ไป:</strong> ${data.budgetUsed || 0} บาท</p>
-                                    <p style="margin: 0;"><strong>คงเหลือ:</strong> ${data.budgetRemaining || 0} บาท</p>
-                                </div>
-                            </div>
-                        </div>
-                        
-                        <div style="background: #fef3c7; padding: 20px; border-radius: 8px; border: 1px solid #fcd34d; margin-bottom: 20px;">
-                            <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #92400e;">5.2 ด้านผลการดำเนินงาน</h3>
-                            
-                            <div style="margin-bottom: 15px;">
-                                <p style="margin: 8px 0;"><strong>5.2.1 ผลสัมฤทธิ์:</strong> ${data.achievement || '-'}</p>
-                                ${data.achievementDetail ? `<div style="background: white; padding: 10px; border-radius: 4px; margin: 8px 0;"><p style="margin: 0;"><strong>รายละเอียด:</strong> ${data.achievementDetail}</p></div>` : ''}
-                                <p style="margin: 8px 0;"><strong>5.2.2 ผลด้านปริมาณ:</strong> ${data.quantityResult || '-'}</p>
-                                <p style="margin: 8px 0;"><strong>5.2.3 ผลด้านคุณภาพ:</strong> ${data.qualityResult || '-'}</p>
-                            </div>
-                            
-                            ${data.kpiData && data.kpiData.length > 0 ? `
-                                <div style="background: white; padding: 15px; border-radius: 6px;">
-                                    <h4 style="font-weight: bold; margin-bottom: 10px;">ตัวชี้วัดความสำเร็จ:</h4>
-                                    ${data.kpiData.map(kpi => `
-                                        <div style="background: #f3f4f6; padding: 8px; margin-bottom: 8px; border-radius: 4px; border-left: 4px solid ${kpi.summary === 'บรรลุ' ? '#10b981' : '#ef4444'};">
-                                            <p style="margin: 0;"><strong>${kpi.kpi}:</strong> เป้าหมาย ${kpi.target}%, ผลลัพธ์ ${kpi.result}% (${kpi.summary})</p>
-                                        </div>
-                                    `).join('')}
-                                </div>
-                            ` : ''}
-                        </div>
-                        
-                        ${data.problems || data.otherProblems ? `
-                            <div style="background: #fef2f2; padding: 20px; border-radius: 8px; border: 1px solid #fecaca; margin-bottom: 20px;">
-                                <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #991b1b;">5.3 ปัญหาและอุปสรรคในการดำเนินการ</h3>
-                                ${data.problems ? `<p style="margin: 8px 0;"><strong>ปัญหาที่พบ:</strong> ${data.problems}</p>` : ''}
-                                ${data.otherProblems ? `<div style="background: white; padding: 10px; border-radius: 4px; margin-top: 10px;"><p style="margin: 0;"><strong>ปัญหาอื่นๆ:</strong> ${data.otherProblems}</p></div>` : ''}
-                            </div>
-                        ` : ''}
-                        
-                        ${data.suggestions ? `
-                            <div style="background: #f0f9ff; padding: 20px; border-radius: 8px; border: 1px solid #bae6fd; margin-bottom: 20px;">
-                                <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #0c4a6e;">5.4 ข้อเสนอแนะและแนวทางการพัฒนา</h3>
-                                <div style="background: white; padding: 15px; border-radius: 6px;">
-                                    <p style="margin: 0;">${data.suggestions}</p>
-                                </div>
-                            </div>
-                        ` : ''}
-                        
                         <div style="background: #f3e8ff; padding: 20px; border-radius: 8px; border: 1px solid #c4b5fd;">
                             <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #581c87;">5.5 สรุปผลการประเมิน</h3>
                             <div style="background: white; padding: 15px; border-radius: 6px; text-align: center;">
                                 <p style="font-size: 20px; font-weight: bold; margin: 0; color: ${data.finalResult === 'บรรลุตามเป้าหมาย' ? '#059669' : data.finalResult === 'ไม่บรรลุตามเป้าหมาย' ? '#dc2626' : '#d97706'};">
                                     ${data.finalResult || 'รอประเมิน'}
+                                </p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="border-top: 2px solid #e5e7eb; padding-top: 20px; margin-top: 30px;">
+                        <div style="background: #f8fafc; padding: 20px; border-radius: 8px;">
+                            <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 15px;">ลายเซ็นผู้รายงาน</h3>
+                            <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                                <p style="margin: 0;"><strong>ชื่อผู้รายงาน:</strong> ${data.reporterName || '-'}</p>
+                                <p style="margin: 0;"><strong>วันที่:</strong> ${data.reportDate || '-'}</p>
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <div style="margin-top: 40px; text-align: center; font-size: 12px; color: #666; border-top: 1px solid #e5e7eb; padding-top: 20px;">
+                        <p>สร้างเมื่อ: ${new Date().toLocaleString('th-TH')}</p>
+                    </div>
+                `;
+                
+                document.body.appendChild(tempDiv);
+                
+                const loadingMsg = document.createElement('div');
+                loadingMsg.id = 'pdf-loading';
+                loadingMsg.style.cssText = 'position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; padding: 20px; border-radius: 8px; box-shadow: 0 4px 12px rgba(0,0,0,0.15); z-index: 10000; text-align: center;';
+                loadingMsg.innerHTML = '<p style="margin: 0; font-family: Sarabun, sans-serif;">กำลังสร้าง PDF...</p>';
+                document.body.appendChild(loadingMsg);
+                
+                setTimeout(() => {
+                    html2canvas(tempDiv, {
+                        scale: 2,
+                        useCORS: true,
+                        allowTaint: true,
+                        backgroundColor: '#ffffff'
+                    }).then(canvas => {
+                        document.body.removeChild(tempDiv);
+                        document.body.removeChild(loadingMsg);
+                        
+                        const { jsPDF } = window.jspdf;
+                        const imgData = canvas.toDataURL('image/png');
+                        const pdf = new jsPDF('p', 'mm', 'a4');
+                        
+                        const imgWidth = 210;
+                        const pageHeight = 295;
+                        const imgHeight = (canvas.height * imgWidth) / canvas.width;
+                        
+                        pdf.addImage(imgData, 'PNG', 0, 0, imgWidth, imgHeight);
+                        
+                        const fileName = `แบบประเมินโครงการ_${(data.projectName || 'โครงการ').replace(/[^a-zA-Z0-9ก-๙]/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+                        pdf.save(fileName);
+                    }).catch(error => {
+                        document.body.removeChild(tempDiv);
+                        document.body.removeChild(loadingMsg);
+                        console.error('Canvas error:', error);
+                        alert('เกิดข้อผิดพลาดในการสร้าง PDF');
+                    });
+                }, 100);
+                
+            } catch (error) {
+                console.error('PDF generation error:', error);
+                alert('เกิดข้อผิดพลาดในการสร้าง PDF: ' + error.message);
+            }
+        } || 'รอประเมิน'}
                                 </p>
                             </div>
                         </div>
