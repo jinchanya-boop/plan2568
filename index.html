@@ -1782,10 +1782,78 @@ function doGet(e) {
             document.getElementById('formSection').classList.remove('hidden');
         }
 
-        // Add missing function
+        // PDF Modal functions
         function showPDFExports() {
             updatePDFProjectsList();
             document.getElementById('pdfModal').classList.remove('hidden');
+        }
+
+        function closePDFModal() {
+            document.getElementById('pdfModal').classList.add('hidden');
+        }
+
+        // Config functions
+        function toggleConfig() {
+            const panel = document.getElementById('configPanel');
+            panel.classList.toggle('hidden');
+        }
+
+        // Sync function
+        function syncFromSheets() {
+            const scriptUrl = document.getElementById('scriptUrl').value || DEFAULT_SCRIPT_URL;
+            
+            if (!isGoogleConnected || !scriptUrl) return;
+            
+            showStatus('กำลังซิงค์ข้อมูล...', 'loading');
+            
+            fetch(scriptUrl)
+                .then(response => response.json())
+                .then(result => {
+                    if (result.success && result.data && result.data.length > 1) {
+                        allProjectsData = result.data.slice(1).map((row, index) => ({
+                            id: index + 1,
+                            timestamp: row[0] || '',
+                            projectName: row[1] || '',
+                            department: row[2] || '',
+                            strategy: row[3] || '',
+                            standard: row[4] || '',
+                            timeline: row[5] || '',
+                            responsible: row[6] || '',
+                            timelineStatus: row[7] || '',
+                            locationSuitability: row[8] || '',
+                            equipmentQuantity: row[9] || '',
+                            missingEquipment: row[10] || '',
+                            equipmentQuality: row[11] || '',
+                            personnelQuantity: row[12] || '',
+                            cooperation: row[13] || '',
+                            budgetAllocated: row[14] || '',
+                            budgetUsed: row[15] || '',
+                            budgetRemaining: row[16] || '',
+                            achievement: row[17] || '',
+                            achievementDetail: row[18] || '',
+                            quantityResult: row[19] || '',
+                            qualityResult: row[20] || '',
+                            problems: row[21] || '',
+                            otherProblems: row[22] || '',
+                            suggestions: row[23] || '',
+                            finalResult: row[24] || '',
+                            reporterName: row[25] || '',
+                            reportDate: row[26] || '',
+                            kpiData: row[27] ? JSON.parse(row[27]) : []
+                        }));
+                        
+                        updateDashboardWithData(allProjectsData);
+                        showStatus('ซิงค์ข้อมูลสำเร็จ', 'success');
+                    } else {
+                        allProjectsData = [];
+                        updateDashboardWithData([]);
+                        showStatus('ไม่พบข้อมูลใน Google Sheets', 'success');
+                    }
+                })
+                .catch(error => {
+                    console.error('Sync error:', error);
+                    showStatus('เกิดข้อผิดพลาดในการซิงค์ข้อมูล', 'error');
+                });
         }
 
         // Signature pad functions
