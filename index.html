@@ -1,8 +1,5 @@
-<button onclick="debugLocalStorage()" class="bg-yellow-600 hover:bg-yellow-700 text-white px-4 py-2 rounded-lg transition-colors">
-                        🔍 Debug ข้อมูล
-                    </button>
-                    <button onclick="clearAllData()" class="bg-red-600 hover:bg-red-700 text-white px-4 py-2 rounded-lg transition-colors">
-                        🗑️ ล้างข้อมูล
+<button onclick="cleanupLocalStorageData()" class="bg-orange-600 hover:bg-orange-700 text-white px-4 py-2 rounded-lg transition-colors">
+                        🧹 ทำความสะอาดข้อมูล
                     </button><!DOCTYPE html>
 <html lang="th">
 <head>
@@ -418,11 +415,18 @@
         function loadDashboardData() {
             try {
                 const projects = JSON.parse(localStorage.getItem('projects') || '[]');
-                allProjectsData = projects.map((project, index) => ({ ...project, id: index + 1 }));
+                
+                // ตรวจสอบและกรองข้อมูลที่มีปัญหา
+                const validProjects = projects.filter(project => {
+                    return project && typeof project === 'object' && project.projectName;
+                });
+                
+                allProjectsData = validProjects.map((project, index) => ({ ...project, id: index + 1 }));
                 
                 // Debug: แสดงจำนวนข้อมูลจริง
-                console.log('Actual projects in localStorage:', projects.length);
-                console.log('Projects data:', projects);
+                console.log('Raw projects count:', projects.length);
+                console.log('Valid projects count:', validProjects.length);
+                console.log('Projects data:', validProjects);
                 
                 updateDashboardWithData(allProjectsData);
             } catch (error) {
@@ -436,11 +440,14 @@
             try {
                 if (!projects) projects = [];
                 
+                // แสดงจำนวนข้อมูลจริง
+                console.log('Updating dashboard with projects count:', projects.length);
+                
                 // Update counters
                 document.getElementById('totalProjects').textContent = projects.length;
                 
-                const successCount = projects.filter(p => p.finalResult === 'บรรลุตามเป้าหมาย').length;
-                const failedCount = projects.filter(p => p.finalResult === 'ไม่บรรลุตามเป้าหมาย').length;
+                const successCount = projects.filter(p => p && p.finalResult === 'บรรลุตามเป้าหมาย').length;
+                const failedCount = projects.filter(p => p && p.finalResult === 'ไม่บรรลุตามเป้าหมาย').length;
                 const pendingCount = projects.length - successCount - failedCount;
                 
                 document.getElementById('successProjects').textContent = successCount;
@@ -454,27 +461,31 @@
                         projectsList.innerHTML = '<p class="text-gray-500 text-center py-8">ยังไม่มีข้อมูลโครงการ</p>';
                     } else {
                         const recentProjects = projects.slice(-5).reverse();
-                        projectsList.innerHTML = recentProjects.map(project => `
-                            <div class="bg-white rounded-lg p-4 border border-gray-200">
-                                <div class="flex justify-between items-start">
-                                    <div>
-                                        <h4 class="font-medium text-gray-900">${project.projectName || 'ไม่ระบุชื่อโครงการ'}</h4>
-                                        <p class="text-sm text-gray-600">ฝ่าย: ${project.department || 'ไม่ระบุ'}</p>
-                                        <p class="text-sm text-gray-600">ผู้รับผิดชอบ: ${project.responsible || 'ไม่ระบุ'}</p>
-                                    </div>
-                                    <div class="text-right">
-                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
-                                            project.finalResult === 'บรรลุตามเป้าหมาย' ? 'bg-green-100 text-green-800' :
-                                            project.finalResult === 'ไม่บรรลุตามเป้าหมาย' ? 'bg-red-100 text-red-800' :
-                                            'bg-yellow-100 text-yellow-800'
-                                        }">
-                                            ${project.finalResult || 'รอประเมิน'}
-                                        </span>
-                                        <p class="text-xs text-gray-500 mt-1">${project.reportDate || 'ไม่ระบุวันที่'}</p>
+                        projectsList.innerHTML = recentProjects.map(project => {
+                            if (!project || !project.projectName) return '';
+                            
+                            return `
+                                <div class="bg-white rounded-lg p-4 border border-gray-200">
+                                    <div class="flex justify-between items-start">
+                                        <div>
+                                            <h4 class="font-medium text-gray-900">${project.projectName || 'ไม่ระบุชื่อโครงการ'}</h4>
+                                            <p class="text-sm text-gray-600">ฝ่าย: ${project.department || 'ไม่ระบุ'}</p>
+                                            <p class="text-sm text-gray-600">ผู้รับผิดชอบ: ${project.responsible || 'ไม่ระบุ'}</p>
+                                        </div>
+                                        <div class="text-right">
+                                            <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                                project.finalResult === 'บรรลุตามเป้าหมาย' ? 'bg-green-100 text-green-800' :
+                                                project.finalResult === 'ไม่บรรลุตามเป้าหมาย' ? 'bg-red-100 text-red-800' :
+                                                'bg-yellow-100 text-yellow-800'
+                                            }">
+                                                ${project.finalResult || 'รอประเมิน'}
+                                            </span>
+                                            <p class="text-xs text-gray-500 mt-1">${project.reportDate || 'ไม่ระบุวันที่'}</p>
+                                        </div>
                                     </div>
                                 </div>
-                            </div>
-                        `).join('');
+                            `;
+                        }).filter(html => html !== '').join('');
                     }
                 }
                 
@@ -985,7 +996,14 @@
             }
         });
 
-        // Sync Functions (placeholder) + Debug functions
+        function clearAllData() {
+            if (confirm('คุณต้องการล้างข้อมูลทั้งหมดใช่ไหม? การกระทำนี้ไม่สามารถยกเลิกได้')) {
+                localStorage.removeItem('projects');
+                allProjectsData = [];
+                loadDashboardData();
+                alert('ล้างข้อมูลเรียบร้อยแล้ว');
+            }
+        }
         function syncFromSheets() {
             console.log('Sync from sheets called');
             alert('ฟีเจอร์นี้จะใช้งานได้เมื่อตั้งค่า Google Apps Script แล้ว');
