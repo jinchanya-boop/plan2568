@@ -73,7 +73,7 @@
                     <div id="syncStatus" class="text-sm text-gray-600">
                         <span class="inline-flex items-center">
                             <span class="w-2 h-2 bg-green-500 rounded-full mr-2"></span>
-                            เชื่อมต่อ Google Sheets
+                            พร้อมใช้งาน
                         </span>
                     </div>
                     <button onclick="toggleConfig()" class="bg-gray-600 hover:bg-gray-700 text-white px-4 py-2 rounded-lg transition-colors">
@@ -92,7 +92,7 @@
 
     <!-- Dashboard Section -->
     <div id="dashboard" class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-                    <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
+        <div class="bg-white rounded-xl shadow-lg p-6 mb-8">
             <div class="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-6 gap-4">
                 <h2 class="text-2xl font-bold text-gray-900">แดชบอร์ดสถิติการส่งแบบประเมิน</h2>
                 <div class="flex flex-col sm:flex-row gap-3 w-full sm:w-auto">
@@ -170,7 +170,7 @@
             <div class="bg-gray-50 rounded-lg p-6">
                 <h3 class="text-lg font-semibold mb-4">📋 รายการโครงการล่าสุด</h3>
                 <div id="projectsList" class="space-y-3">
-                    <p class="text-gray-500 text-center py-8">กำลังโหลดข้อมูลจาก Google Sheets...</p>
+                    <p class="text-gray-500 text-center py-8">ยังไม่มีข้อมูลโครงการ</p>
                 </div>
             </div>
         </div>
@@ -211,7 +211,7 @@
                     <div class="border-t pt-4">
                         <h4 class="font-semibold mb-3">📋 รายการโครงการ (คลิกเพื่อส่งออก PDF แต่ละโครงการ)</h4>
                         <div id="pdfProjectsList" class="max-h-96 overflow-y-auto space-y-2">
-                            <p class="text-gray-500 text-center py-4">กำลังโหลดรายการโครงการ...</p>
+                            <p class="text-gray-500 text-center py-4">ยังไม่มีข้อมูลโครงการ</p>
                         </div>
                     </div>
                 </div>
@@ -287,276 +287,6 @@
                 <div class="bg-purple-50 rounded-lg p-6">
                     <h3 class="text-lg font-semibold mb-4 text-purple-800">5. ผลการดำเนินงาน</h3>
                     
-                    <!-- 5.1 Factors -->
-                    <div class="mb-6">
-                        <h4 class="font-medium mb-3 text-purple-700">5.1 ด้านปัจจัย</h4>
-                        
-                        <!-- 5.1.1 Timeline -->
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">5.1.1 ระยะเวลาดำเนินการ</label>
-                            <div class="space-y-2">
-                                <label class="flex items-center">
-                                    <input type="radio" name="timelineStatus" value="ตรงตามแผน" class="mr-2">
-                                    <span>ตรงตามที่กำหนดในแผน</span>
-                                </label>
-                                <label class="flex items-center">
-                                    <input type="radio" name="timelineStatus" value="เร็วกว่าแผน" class="mr-2">
-                                    <span>เร็วกว่าที่กำหนดในแผน</span>
-                                </label>
-                                <label class="flex items-center">
-                                    <input type="radio" name="timelineStatus" value="ช้ากว่าแผน" class="mr-2">
-                                    <span>ช้ากว่าที่กำหนดในแผน</span>
-                                </label>
-                                <label class="flex items-center">
-                                    <input type="radio" name="timelineStatus" value="ไม่ได้ดำเนินการ" class="mr-2">
-                                    <span>ไม่ได้ดำเนินการ</span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <!-- 5.1.2 Location -->
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">5.1.2 สถานที่ที่ใช้ดำเนินการมีความเหมาะสม</label>
-                            <div class="flex space-x-4">
-                                <label class="flex items-center">
-                                    <input type="radio" name="locationSuitability" value="มาก" class="mr-2">
-                                    <span>มาก</span>
-                                </label>
-                                <label class="flex items-center">
-                                    <input type="radio" name="locationSuitability" value="ปานกลาง" class="mr-2">
-                                    <span>ปานกลาง</span>
-                                </label>
-                                <label class="flex items-center">
-                                    <input type="radio" name="locationSuitability" value="น้อย" class="mr-2">
-                                    <span>น้อย</span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <!-- 5.1.3 Equipment Quantity -->
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">5.1.3 จำนวนเครื่องมือและอุปกรณ์</label>
-                            <div class="space-y-2">
-                                <label class="flex items-center">
-                                    <input type="radio" name="equipmentQuantity" value="เพียงพอ" class="mr-2">
-                                    <span>มีเพียงพอ</span>
-                                </label>
-                                <label class="flex items-center">
-                                    <input type="radio" name="equipmentQuantity" value="ไม่เพียงพอ" class="mr-2">
-                                    <span>ไม่เพียงพอ</span>
-                                </label>
-                            </div>
-                            <input type="text" name="missingEquipment" placeholder="วัสดุ อุปกรณ์ที่ขาดคือ..." class="w-full px-3 py-2 border border-gray-300 rounded-md mt-2">
-                        </div>
-
-                        <!-- 5.1.4 Equipment Quality -->
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">5.1.4 คุณภาพของเครื่องมือและอุปกรณ์</label>
-                            <div class="flex space-x-4">
-                                <label class="flex items-center">
-                                    <input type="radio" name="equipmentQuality" value="ดีมาก" class="mr-2">
-                                    <span>ดีมาก</span>
-                                </label>
-                                <label class="flex items-center">
-                                    <input type="radio" name="equipmentQuality" value="พอใช้" class="mr-2">
-                                    <span>พอใช้</span>
-                                </label>
-                                <label class="flex items-center">
-                                    <input type="radio" name="equipmentQuality" value="ต้องปรับปรุง" class="mr-2">
-                                    <span>ต้องปรับปรุง</span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <!-- 5.1.5 Personnel -->
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">5.1.5 จำนวนของบุคลากรหรือผู้ดำเนินงาน</label>
-                            <div class="flex space-x-4">
-                                <label class="flex items-center">
-                                    <input type="radio" name="personnelQuantity" value="มากเกินไป" class="mr-2">
-                                    <span>มากเกินไป</span>
-                                </label>
-                                <label class="flex items-center">
-                                    <input type="radio" name="personnelQuantity" value="เพียงพอ" class="mr-2">
-                                    <span>เพียงพอ</span>
-                                </label>
-                                <label class="flex items-center">
-                                    <input type="radio" name="personnelQuantity" value="น้อยเกินไป" class="mr-2">
-                                    <span>น้อยเกินไป</span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <!-- 5.1.6 Cooperation -->
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">5.1.6 ความร่วมมือในการดำเนินการของผู้ร่วมงาน/ผู้เกี่ยวข้อง</label>
-                            <div class="flex space-x-4">
-                                <label class="flex items-center">
-                                    <input type="radio" name="cooperation" value="ดีมาก" class="mr-2">
-                                    <span>ดีมาก</span>
-                                </label>
-                                <label class="flex items-center">
-                                    <input type="radio" name="cooperation" value="พอสมควร" class="mr-2">
-                                    <span>พอสมควร</span>
-                                </label>
-                                <label class="flex items-center">
-                                    <input type="radio" name="cooperation" value="น้อยเกินไป" class="mr-2">
-                                    <span>น้อยเกินไป</span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <!-- 5.1.7 Budget -->
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">5.1.7 การใช้จ่ายงบประมาณ</label>
-                            <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                                <div>
-                                    <label class="block text-xs text-gray-600 mb-1">ได้รับจัดสรร (บาท)</label>
-                                    <input type="number" name="budgetAllocated" class="w-full px-3 py-2 border border-gray-300 rounded-md">
-                                </div>
-                                <div>
-                                    <label class="block text-xs text-gray-600 mb-1">ใช้ไป (บาท)</label>
-                                    <input type="number" name="budgetUsed" class="w-full px-3 py-2 border border-gray-300 rounded-md">
-                                </div>
-                                <div>
-                                    <label class="block text-xs text-gray-600 mb-1">คงเหลือ (บาท)</label>
-                                    <input type="number" name="budgetRemaining" class="w-full px-3 py-2 border border-gray-300 rounded-md">
-                                </div>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 5.2 Results -->
-                    <div class="mb-6">
-                        <h4 class="font-medium mb-3 text-purple-700">5.2 ด้านผลการดำเนินงาน</h4>
-                        
-                        <!-- 5.2.1 Achievement -->
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">5.2.1 ผลสัมฤทธิ์ของงาน/โครงการ เปรียบเทียบกับวัตถุประสงค์</label>
-                            <div class="space-y-2">
-                                <label class="flex items-center">
-                                    <input type="radio" name="achievement" value="สัมฤทธิ์ผลตามวัตถุประสงค์ทุกข้อ" class="mr-2">
-                                    <span>สัมฤทธิ์ผลตามวัตถุประสงค์ทุกข้อ</span>
-                                </label>
-                                <label class="flex items-center">
-                                    <input type="radio" name="achievement" value="สัมฤทธิ์ผลตามวัตถุประสงค์บางข้อ" class="mr-2">
-                                    <span>สัมฤทธิ์ผลตามวัตถุประสงค์บางข้อ</span>
-                                </label>
-                                <label class="flex items-center">
-                                    <input type="radio" name="achievement" value="ไม่ได้ผลตามวัตถุประสงค์" class="mr-2">
-                                    <span>ไม่ได้ผลตามวัตถุประสงค์</span>
-                                </label>
-                            </div>
-                            <textarea name="achievementDetail" placeholder="รายละเอียดเพิ่มเติม..." class="w-full px-3 py-2 border border-gray-300 rounded-md mt-2" rows="2"></textarea>
-                        </div>
-
-                        <!-- 5.2.2 Quantity -->
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">5.2.2 ผลการดำเนินการเปรียบเทียบกับเป้าหมายด้านปริมาณ</label>
-                            <div class="flex space-x-4">
-                                <label class="flex items-center">
-                                    <input type="radio" name="quantityResult" value="สูงกว่าเป้าหมาย" class="mr-2">
-                                    <span>สูงกว่าเป้าหมาย</span>
-                                </label>
-                                <label class="flex items-center">
-                                    <input type="radio" name="quantityResult" value="เท่ากับเป้าหมาย" class="mr-2">
-                                    <span>เท่ากับเป้าหมาย</span>
-                                </label>
-                                <label class="flex items-center">
-                                    <input type="radio" name="quantityResult" value="ต่ำกว่าเป้าหมาย" class="mr-2">
-                                    <span>ต่ำกว่าเป้าหมาย</span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <!-- 5.2.3 Quality -->
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">5.2.3 ผลการดำเนินงานเปรียบเทียบกับเป้าหมายด้านคุณภาพ</label>
-                            <div class="flex space-x-4">
-                                <label class="flex items-center">
-                                    <input type="radio" name="qualityResult" value="พอใจมาก" class="mr-2">
-                                    <span>พอใจมาก</span>
-                                </label>
-                                <label class="flex items-center">
-                                    <input type="radio" name="qualityResult" value="พอใจ" class="mr-2">
-                                    <span>พอใจ</span>
-                                </label>
-                                <label class="flex items-center">
-                                    <input type="radio" name="qualityResult" value="ต้องปรับปรุง" class="mr-2">
-                                    <span>ต้องปรับปรุง</span>
-                                </label>
-                            </div>
-                        </div>
-
-                        <!-- KPI Table -->
-                        <div class="mb-4">
-                            <label class="block text-sm font-medium text-gray-700 mb-2">ตัวชี้วัดความสำเร็จ</label>
-                            <div class="overflow-x-auto">
-                                <table class="min-w-full border border-gray-300">
-                                    <thead class="bg-gray-50">
-                                        <tr>
-                                            <th class="border border-gray-300 px-4 py-2 text-left">ตัวชี้วัดความสำเร็จ</th>
-                                            <th class="border border-gray-300 px-4 py-2 text-left">เป้าหมาย (%)</th>
-                                            <th class="border border-gray-300 px-4 py-2 text-left">ผลการดำเนินงาน (%)</th>
-                                            <th class="border border-gray-300 px-4 py-2 text-left">สรุป</th>
-                                        </tr>
-                                    </thead>
-                                    <tbody id="kpiTable">
-                                        <tr>
-                                            <td class="border border-gray-300 px-4 py-2">
-                                                <input type="text" name="kpi1" class="w-full px-2 py-1 border-0 focus:ring-0" placeholder="ตัวชี้วัดที่ 1">
-                                            </td>
-                                            <td class="border border-gray-300 px-4 py-2">
-                                                <input type="number" name="target1" class="w-full px-2 py-1 border-0 focus:ring-0" placeholder="0">
-                                            </td>
-                                            <td class="border border-gray-300 px-4 py-2">
-                                                <input type="number" name="result1" class="w-full px-2 py-1 border-0 focus:ring-0" placeholder="0">
-                                            </td>
-                                            <td class="border border-gray-300 px-4 py-2">
-                                                <select name="summary1" class="w-full px-2 py-1 border-0 focus:ring-0">
-                                                    <option value="">เลือก</option>
-                                                    <option value="บรรลุ">บรรลุ</option>
-                                                    <option value="ไม่บรรลุ">ไม่บรรลุ</option>
-                                                </select>
-                                            </td>
-                                        </tr>
-                                    </tbody>
-                                </table>
-                                <button type="button" onclick="addKPIRow()" class="mt-2 bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded text-sm">+ เพิ่มตัวชี้วัด</button>
-                            </div>
-                        </div>
-                    </div>
-
-                    <!-- 5.3 Problems -->
-                    <div class="mb-6">
-                        <h4 class="font-medium mb-3 text-purple-700">5.3 ปัญหาและอุปสรรคในการดำเนินการ</h4>
-                        <div class="space-y-2">
-                            <label class="flex items-start">
-                                <input type="checkbox" name="problems" value="ไม่สอดคล้องกับความต้องการ" class="mr-2 mt-1">
-                                <span>งาน/โครงการไม่สอดคล้องกับความต้องการหรือปัญหาของโรงเรียน</span>
-                            </label>
-                            <label class="flex items-start">
-                                <input type="checkbox" name="problems" value="ไม่ตอบสนองนโยบาย" class="mr-2 mt-1">
-                                <span>งาน/โครงการไม่สามารถตอบสนองนโยบาย/มาตรฐานการศึกษาที่ระบุไว้ในแผน</span>
-                            </label>
-                            <label class="flex items-start">
-                                <input type="checkbox" name="problems" value="ขาดการประสานงาน" class="mr-2 mt-1">
-                                <span>ขาดการประสานงานระหว่างคณะดำเนินงานหรือผู้ที่เกี่ยวข้อง</span>
-                            </label>
-                            <label class="flex items-start">
-                                <input type="checkbox" name="problems" value="ขั้นตอนไม่เป็นไปตามแผน" class="mr-2 mt-1">
-                                <span>ขั้นตอนการปฏิบัติงานของงาน/โครงการไม่เป็นไปตามที่กำหนดไว้ในแผน</span>
-                            </label>
-                        </div>
-                        <textarea name="otherProblems" placeholder="ปัญหา/อุปสรรคอื่นๆ..." class="w-full px-3 py-2 border border-gray-300 rounded-md mt-3" rows="3"></textarea>
-                    </div>
-
-                    <!-- 5.4 Suggestions -->
-                    <div class="mb-6">
-                        <h4 class="font-medium mb-3 text-purple-700">5.4 ข้อเสนอแนะและแนวทางการพัฒนา</h4>
-                        <textarea name="suggestions" class="w-full px-3 py-2 border border-gray-300 rounded-md" rows="4" placeholder="กรุณาระบุข้อเสนอแนะและแนวทางการพัฒนา..."></textarea>
-                    </div>
-
                     <!-- 5.5 Summary -->
                     <div class="mb-6">
                         <h4 class="font-medium mb-3 text-purple-700">5.5 สรุปผลการประเมิน</h4>
@@ -587,347 +317,591 @@
                             <input type="date" name="reportDate" class="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500" required>
                         </div>
                     </div>
-
-                    <div class="mt-4">
-                        <label class="block text-sm font-medium text-gray-700 mb-2">ลายเซ็นอิเล็กทรอนิกส์</label>
-                        <div class="signature-pad rounded-lg p-4">
-                            <canvas id="signatureCanvas" width="400" height="200" class="border-2 border-dashed border-gray-300 rounded cursor-crosshair"></canvas>
-                        </div>
-                        <div class="mt-2 space-x-2">
-                            <button type="button" onclick="clearSignature()" class="bg-gray-500 hover:bg-gray-600 text-white px-4 py-2 rounded">ล้างลายเซ็น</button>
-                            <button type="button" onclick="saveSignature()" class="bg-blue-500 hover:bg-blue-600 text-white px-4 py-2 rounded">บันทึกลายเซ็น</button>
-                        </div>
-                    </div>
                 </div>
 
                 <!-- Submit Buttons -->
                 <div class="flex flex-col sm:flex-row gap-4 pt-6">
                     <button type="submit" class="flex-1 bg-green-600 hover:bg-green-700 text-white font-medium py-3 px-6 rounded-lg transition-colors">
-                        บันทึกไป Google Sheets
+                        บันทึกข้อมูล
                     </button>
                     <button type="button" onclick="generateSingleProjectPDF()" class="flex-1 bg-red-600 hover:bg-red-700 text-white font-medium py-3 px-6 rounded-lg transition-colors">
                         ส่งออก PDF
-                    </button>
-                    <button type="button" onclick="previewForm()" class="flex-1 bg-blue-600 hover:bg-blue-700 text-white font-medium py-3 px-6 rounded-lg transition-colors">
-                        ดูตัวอย่าง
                     </button>
                 </div>
             </form>
         </div>
     </div>
 
-    <!-- Preview Modal -->
-    <div id="previewModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
-        <div class="flex items-center justify-center min-h-screen p-4">
-            <div class="bg-white rounded-lg max-w-4xl w-full max-h-screen overflow-y-auto">
-                <div class="p-6">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-xl font-bold">ตัวอย่างแบบประเมิน</h3>
-                        <button onclick="closePreview()" class="text-gray-500 hover:text-gray-700">&times;</button>
-                    </div>
-                    <div id="previewContent" class="space-y-4"></div>
-                </div>
-            </div>
-        </div>
-    </div>
-
-    <!-- Instructions Modal -->
-    <div id="instructionsModal" class="fixed inset-0 bg-black bg-opacity-50 hidden z-50">
-        <div class="flex items-center justify-center min-h-screen p-4">
-            <div class="bg-white rounded-lg max-w-3xl w-full max-h-screen overflow-y-auto">
-                <div class="p-6">
-                    <div class="flex justify-between items-center mb-4">
-                        <h3 class="text-xl font-bold">วิธีสร้าง Google Apps Script</h3>
-                        <button onclick="closeInstructions()" class="text-gray-500 hover:text-gray-700">&times;</button>
-                    </div>
-                    <div class="space-y-4 text-sm">
-                        <div class="bg-blue-50 p-4 rounded-lg">
-                            <h4 class="font-semibold mb-2">ขั้นตอนการสร้าง Apps Script:</h4>
-                            <ol class="list-decimal list-inside space-y-2">
-                                <li>ไปที่ <a href="https://script.google.com" target="_blank" class="text-blue-600 underline">Google Apps Script</a></li>
-                                <li>คลิก "New Project"</li>
-                                <li>ลบโค้ดเดิมออกและคัดลอกโค้ดด้านล่างไปวาง</li>
-                                <li>บันทึกโปรเจกต์ (ตั้งชื่อตามต้องการ)</li>
-                                <li>คลิก "Deploy" > "New deployment"</li>
-                                <li>Type: เลือก "Web app"</li>
-                                <li>Execute as: เลือก "Me"</li>
-                                <li>Who has access: เลือก "Anyone"</li>
-                                <li>คลิก "Deploy" และคัดลอก URL ที่ได้มาใส่ในระบบ</li>
-                            </ol>
-                        </div>
-                        
-                        <div class="bg-green-50 p-4 rounded-lg">
-                            <h4 class="font-semibold mb-2">โค้ด Google Apps Script ที่ต้องใช้:</h4>
-                            <div class="bg-gray-900 text-green-400 p-4 rounded text-xs overflow-x-auto font-mono">
-                                <pre id="scriptCodeBlock">function doPost(e) {
-  try {
-    let data;
-    if (e.postData && e.postData.contents) {
-      data = JSON.parse(e.postData.contents);
-    } else if (e.parameter && e.parameter.data) {
-      data = JSON.parse(e.parameter.data);
-    } else {
-      throw new Error('ไม่พบข้อมูลที่ส่งมา');
-    }
-    
-    const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID_HERE';
-    const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const sheet = spreadsheet.getActiveSheet();
-    
-    if (sheet.getLastRow() === 0) {
-      const headers = [
-        'วันที่บันทึก', 'ชื่อโครงการ', 'ฝ่าย', 'กลยุทธ์', 'มาตรฐาน', 
-        'ระยะเวลา', 'ผู้รับผิดชอบ', 'สถานะระยะเวลา', 'ความเหมาะสมสถานที่', 
-        'จำนวนอุปกรณ์', 'อุปกรณ์ที่ขาด', 'คุณภาพอุปกรณ์', 'จำนวนบุคลากร', 
-        'ความร่วมมือ', 'งบประมาณจัดสรร', 'งบประมาณใช้', 'งบประมาณคงเหลือ',
-        'ผลสัมฤทธิ์', 'รายละเอียดผลสัมฤทธิ์', 'ผลปริมาณ', 'ผลคุณภาพ', 
-        'ปัญหาอุปสรรค', 'ปัญหาอื่นๆ', 'ข้อเสนอแนะ', 'สรุปผลการประเมิน', 
-        'ผู้รายงาน', 'วันที่รายงาน', 'KPI_Data'
-      ];
-      sheet.getRange(1, 1, 1, headers.length).setValues([headers]);
-    }
-    
-    const rowData = [
-      new Date().toLocaleString('th-TH'),
-      data.projectName || '', data.department || '', data.strategy || '',
-      data.standard || '', data.timeline || '', data.responsible || '',
-      data.timelineStatus || '', data.locationSuitability || '',
-      data.equipmentQuantity || '', data.missingEquipment || '',
-      data.equipmentQuality || '', data.personnelQuantity || '',
-      data.cooperation || '', data.budgetAllocated || '',
-      data.budgetUsed || '', data.budgetRemaining || '',
-      data.achievement || '', data.achievementDetail || '',
-      data.quantityResult || '', data.qualityResult || '',
-      Array.isArray(data.problems) ? data.problems.join(', ') : (data.problems || ''),
-      data.otherProblems || '', data.suggestions || '',
-      data.finalResult || '', data.reporterName || '',
-      data.reportDate || '', JSON.stringify(data.kpiData || [])
-    ];
-    
-    sheet.appendRow(rowData);
-    
-    return ContentService
-      .createTextOutput(JSON.stringify({
-        success: true,
-        message: 'บันทึกข้อมูลสำเร็จ'
-      }))
-      .setMimeType(ContentService.MimeType.JSON);
-      
-  } catch (error) {
-    return ContentService
-      .createTextOutput(JSON.stringify({
-        success: false,
-        message: error.toString()
-      }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-}
-
-function doGet(e) {
-  try {
-    const SPREADSHEET_ID = 'YOUR_SPREADSHEET_ID_HERE';
-    const spreadsheet = SpreadsheetApp.openById(SPREADSHEET_ID);
-    const sheet = spreadsheet.getActiveSheet();
-    const data = sheet.getDataRange().getValues();
-    
-    return ContentService
-      .createTextOutput(JSON.stringify({
-        success: true,
-        data: data
-      }))
-      .setMimeType(ContentService.MimeType.JSON);
-  } catch (error) {
-    return ContentService
-      .createTextOutput(JSON.stringify({
-        success: false,
-        message: error.toString()
-      }))
-      .setMimeType(ContentService.MimeType.JSON);
-  }
-}</pre>
-                            </div>
-                            <button onclick="copyScriptCode()" class="mt-2 bg-green-600 hover:bg-green-700 text-white px-4 py-2 rounded text-sm">
-                                คัดลอกโค้ด
-                            </button>
-                        </div>
-                        
-                        <div class="bg-red-50 p-4 rounded-lg">
-                            <h4 class="font-semibold mb-2">สำคัญ:</h4>
-                            <ul class="list-disc list-inside space-y-1">
-                                <li><strong>แก้ไข YOUR_SPREADSHEET_ID_HERE</strong> เป็น ID ของ Google Sheets จริง</li>
-                                <li>Google Sheets ต้องอยู่ในบัญชี Google เดียวกับ Apps Script</li>
-                                <li>ตรวจสอบการอนุญาต (Permissions) เมื่อ Deploy ครั้งแรก</li>
-                            </ul>
-                        </div>
-                    </div>
-                    <div class="mt-6 text-center">
-                        <button onclick="closeInstructions()" class="bg-blue-600 hover:bg-blue-700 text-white px-6 py-2 rounded-lg">
-                            เข้าใจแล้ว
-                        </button>
-                    </div>
-                </div>
-            </div>
-        </div>
-    </div>
-
     <script>
         // Global variables
-        let isDrawing = false;
-        let signatureData = null;
-        let kpiCounter = 1;
-        let isGoogleConnected = false;
+        let allProjectsData = [];
         let departmentChart = null;
         let successRateChart = null;
-        let allProjectsData = [];
+        let isGoogleConnected = false;
+        let kpiCounter = 1;
 
-        // Default Google Apps Script URL - แก้ไขตรงนี้
-        const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby87zjz8bvcQprTksDikgsEOAGpr1k8H41mgKBVgF-0VkOaR2fKtsZBdnsY9CwU50cCwA/exec';
+        // Default Google Apps Script URL
+        const DEFAULT_SCRIPT_URL = '';
 
-        // Initialize
+        // Initialize when page loads
         document.addEventListener('DOMContentLoaded', function() {
-            initializeSignaturePad();
+            console.log('DOM Content Loaded');
             loadStoredConfig();
-            autoConnectToGoogleScript();
-            document.querySelector('input[name="reportDate"]').value = new Date().toISOString().split('T')[0];
+            initializeApp();
+            const dateInput = document.querySelector('input[name="reportDate"]');
+            if (dateInput) {
+                dateInput.value = new Date().toISOString().split('T')[0];
+            }
         });
 
-        // Auto-connect function
-        function autoConnectToGoogleScript() {
-            const scriptUrl = document.getElementById('scriptUrl').value || DEFAULT_SCRIPT_URL;
-            if (scriptUrl) {
-                document.getElementById('scriptUrl').value = scriptUrl;
-                testScriptConnection();
-            }
-        }
-
-        // Configuration functions
-        function loadStoredConfig() {
-            const storedUrl = localStorage.getItem('scriptUrl') || DEFAULT_SCRIPT_URL;
-            if (storedUrl) {
-                document.getElementById('scriptUrl').value = storedUrl;
-            }
-        }
-
-        function saveConfig() {
-            const scriptUrl = document.getElementById('scriptUrl').value;
-            localStorage.setItem('scriptUrl', scriptUrl);
-        }
-
-        async function testScriptConnection() {
-            const scriptUrl = document.getElementById('scriptUrl').value || DEFAULT_SCRIPT_URL;
-            
-            if (!scriptUrl) {
-                showStatus('กรุณากรอก Google Apps Script URL', 'error');
-                return;
-            }
-            
-            saveConfig();
-            showStatus('กำลังทดสอบการเชื่อมต่อ...', 'loading');
-            
+        function initializeApp() {
             try {
-                const response = await fetch(scriptUrl);
-                
-                if (response.ok) {
-                    const result = await response.json();
-                    if (result.success) {
-                        showStatus('เชื่อมต่อสำเร็จ!', 'success');
-                        isGoogleConnected = true;
-                        document.getElementById('syncStatus').classList.remove('hidden');
-                        syncFromSheets();
-                    } else {
-                        throw new Error(result.message || 'ไม่สามารถอ่านข้อมูลได้');
-                    }
-                } else {
-                    throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+                // Load data from localStorage
+                loadDashboardData();
+                showDashboard();
+                console.log('App initialized successfully');
+            } catch (error) {
+                console.error('Error initializing app:', error);
+                showDashboard();
+            }
+        }
+
+        function loadStoredConfig() {
+            try {
+                const storedUrl = localStorage.getItem('scriptUrl') || DEFAULT_SCRIPT_URL;
+                const scriptUrlInput = document.getElementById('scriptUrl');
+                if (scriptUrlInput && storedUrl) {
+                    scriptUrlInput.value = storedUrl;
                 }
             } catch (error) {
-                showStatus(`เชื่อมต่อไม่สำเร็จ: ${error.message}`, 'error');
-                isGoogleConnected = false;
-                document.getElementById('syncStatus').classList.add('hidden');
+                console.error('Error loading stored config:', error);
             }
+        }
+
+        function toggleConfig() {
+            try {
+                const panel = document.getElementById('configPanel');
+                if (panel) {
+                    panel.classList.toggle('hidden');
+                }
+            } catch (error) {
+                console.error('Error toggling config:', error);
+            }
+        }
+
+        function showDashboard() {
+            try {
+                document.getElementById('dashboard').classList.remove('hidden');
+                document.getElementById('formSection').classList.add('hidden');
+                loadDashboardData();
+                console.log('Dashboard shown');
+            } catch (error) {
+                console.error('Error showing dashboard:', error);
+            }
+        }
+
+        function showForm() {
+            try {
+                document.getElementById('dashboard').classList.add('hidden');
+                document.getElementById('formSection').classList.remove('hidden');
+                console.log('Form shown');
+            } catch (error) {
+                console.error('Error showing form:', error);
+            }
+        }
+
+        function loadDashboardData() {
+            try {
+                const projects = JSON.parse(localStorage.getItem('projects') || '[]');
+                allProjectsData = projects.map((project, index) => ({ ...project, id: index + 1 }));
+                updateDashboardWithData(allProjectsData);
+                console.log('Dashboard data loaded:', allProjectsData.length, 'projects');
+            } catch (error) {
+                console.error('Error loading dashboard data:', error);
+                allProjectsData = [];
+                updateDashboardWithData([]);
+            }
+        }
+
+        function updateDashboardWithData(projects) {
+            try {
+                if (!projects) projects = [];
+                
+                // Update counters
+                document.getElementById('totalProjects').textContent = projects.length;
+                
+                const successCount = projects.filter(p => p.finalResult === 'บรรลุตามเป้าหมาย').length;
+                const failedCount = projects.filter(p => p.finalResult === 'ไม่บรรลุตามเป้าหมาย').length;
+                const pendingCount = projects.length - successCount - failedCount;
+                
+                document.getElementById('successProjects').textContent = successCount;
+                document.getElementById('failedProjects').textContent = failedCount;
+                document.getElementById('pendingProjects').textContent = pendingCount;
+                
+                // Update projects list
+                const projectsList = document.getElementById('projectsList');
+                if (projectsList) {
+                    if (projects.length === 0) {
+                        projectsList.innerHTML = '<p class="text-gray-500 text-center py-8">ยังไม่มีข้อมูลโครงการ</p>';
+                    } else {
+                        const recentProjects = projects.slice(-5).reverse();
+                        projectsList.innerHTML = recentProjects.map(project => `
+                            <div class="bg-white rounded-lg p-4 border border-gray-200">
+                                <div class="flex justify-between items-start">
+                                    <div>
+                                        <h4 class="font-medium text-gray-900">${project.projectName || 'ไม่ระบุชื่อโครงการ'}</h4>
+                                        <p class="text-sm text-gray-600">ฝ่าย: ${project.department || 'ไม่ระบุ'}</p>
+                                        <p class="text-sm text-gray-600">ผู้รับผิดชอบ: ${project.responsible || 'ไม่ระบุ'}</p>
+                                    </div>
+                                    <div class="text-right">
+                                        <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
+                                            project.finalResult === 'บรรลุตามเป้าหมาย' ? 'bg-green-100 text-green-800' :
+                                            project.finalResult === 'ไม่บรรลุตามเป้าหมาย' ? 'bg-red-100 text-red-800' :
+                                            'bg-yellow-100 text-yellow-800'
+                                        }">
+                                            ${project.finalResult || 'รอประเมิน'}
+                                        </span>
+                                        <p class="text-xs text-gray-500 mt-1">${project.reportDate || 'ไม่ระบุวันที่'}</p>
+                                    </div>
+                                </div>
+                            </div>
+                        `).join('');
+                    }
+                }
+                
+                // Update charts
+                updateCharts(projects);
+                
+                console.log('Dashboard updated with', projects.length, 'projects');
+            } catch (error) {
+                console.error('Error updating dashboard:', error);
+            }
+        }
+
+        function updateCharts(projects) {
+            try {
+                if (!projects) projects = [];
+                
+                // Department data
+                const departmentData = {
+                    'วิชาการ': 0,
+                    'งบประมาณ': 0,
+                    'บุคคล': 0,
+                    'บริหารทั่วไป': 0
+                };
+                
+                const departmentSuccess = {
+                    'วิชาการ': { success: 0, total: 0 },
+                    'งบประมาณ': { success: 0, total: 0 },
+                    'บุคคล': { success: 0, total: 0 },
+                    'บริหารทั่วไป': { success: 0, total: 0 }
+                };
+                
+                projects.forEach(project => {
+                    const dept = project.department || 'อื่นๆ';
+                    if (!departmentData[dept]) {
+                        departmentData[dept] = 0;
+                        departmentSuccess[dept] = { success: 0, total: 0 };
+                    }
+                    
+                    departmentData[dept]++;
+                    departmentSuccess[dept].total++;
+                    
+                    if (project.finalResult === 'บรรลุตามเป้าหมาย') {
+                        departmentSuccess[dept].success++;
+                    }
+                });
+                
+                createDepartmentChart(departmentData);
+                createSuccessRateChart(departmentSuccess);
+                
+                console.log('Charts updated');
+            } catch (error) {
+                console.error('Error updating charts:', error);
+            }
+        }
+
+        function createDepartmentChart(data) {
+            try {
+                const ctx = document.getElementById('departmentChart');
+                if (!ctx) return;
+                
+                if (departmentChart) {
+                    departmentChart.destroy();
+                }
+                
+                const labels = Object.keys(data);
+                const values = Object.values(data);
+                const colors = ['#3B82F6', '#10B981', '#F59E0B', '#EF4444'];
+                
+                departmentChart = new Chart(ctx, {
+                    type: 'doughnut',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            data: values,
+                            backgroundColor: colors,
+                            borderWidth: 2,
+                            borderColor: '#ffffff'
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: {
+                                position: 'bottom',
+                                labels: {
+                                    padding: 20,
+                                    usePointStyle: true,
+                                    font: { family: 'Sarabun', size: 12 }
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error creating department chart:', error);
+            }
+        }
+
+        function createSuccessRateChart(data) {
+            try {
+                const ctx = document.getElementById('successRateChart');
+                if (!ctx) return;
+                
+                if (successRateChart) {
+                    successRateChart.destroy();
+                }
+                
+                const labels = Object.keys(data);
+                const successRates = labels.map(dept => {
+                    const deptData = data[dept];
+                    return deptData.total > 0 ? ((deptData.success / deptData.total) * 100).toFixed(1) : 0;
+                });
+                
+                successRateChart = new Chart(ctx, {
+                    type: 'bar',
+                    data: {
+                        labels: labels,
+                        datasets: [{
+                            label: 'อัตราความสำเร็จ (%)',
+                            data: successRates,
+                            backgroundColor: ['rgba(59, 130, 246, 0.8)', 'rgba(16, 185, 129, 0.8)', 'rgba(245, 158, 11, 0.8)', 'rgba(239, 68, 68, 0.8)'],
+                            borderColor: ['rgba(59, 130, 246, 1)', 'rgba(16, 185, 129, 1)', 'rgba(245, 158, 11, 1)', 'rgba(239, 68, 68, 1)'],
+                            borderWidth: 2,
+                            borderRadius: 4
+                        }]
+                    },
+                    options: {
+                        responsive: true,
+                        maintainAspectRatio: false,
+                        plugins: {
+                            legend: { display: false }
+                        },
+                        scales: {
+                            y: {
+                                beginAtZero: true,
+                                max: 100,
+                                ticks: {
+                                    callback: function(value) { return value + '%'; }
+                                }
+                            }
+                        }
+                    }
+                });
+            } catch (error) {
+                console.error('Error creating success rate chart:', error);
+            }
+        }
+
+        // PDF Export Functions
+        function showPDFExports() {
+            try {
+                updatePDFProjectsList();
+                document.getElementById('pdfModal').classList.remove('hidden');
+            } catch (error) {
+                console.error('Error showing PDF exports:', error);
+            }
+        }
+
+        function closePDFModal() {
+            try {
+                document.getElementById('pdfModal').classList.add('hidden');
+            } catch (error) {
+                console.error('Error closing PDF modal:', error);
+            }
+        }
+
+        function updatePDFProjectsList() {
+            try {
+                const pdfProjectsList = document.getElementById('pdfProjectsList');
+                if (!pdfProjectsList) return;
+                
+                if (!allProjectsData || allProjectsData.length === 0) {
+                    pdfProjectsList.innerHTML = '<p class="text-gray-500 text-center py-4">ยังไม่มีข้อมูลโครงการ</p>';
+                } else {
+                    pdfProjectsList.innerHTML = allProjectsData.map(project => `
+                        <div class="pdf-item bg-gray-50 border border-gray-200 rounded-lg p-3 hover:bg-gray-100 cursor-pointer" 
+                             onclick="generateProjectPDF('${project.id}')">
+                            <div class="flex justify-between items-center">
+                                <div>
+                                    <h5 class="font-medium text-gray-900">${project.projectName || 'ไม่ระบุชื่อโครงการ'}</h5>
+                                    <p class="text-xs text-gray-600">ฝ่าย: ${project.department || 'ไม่ระบุ'} | ผู้รายงาน: ${project.reporterName || 'ไม่ระบุ'}</p>
+                                </div>
+                                <div class="text-right">
+                                    <span class="text-xs px-2 py-1 rounded ${
+                                        project.finalResult === 'บรรลุตามเป้าหมาย' ? 'bg-green-100 text-green-700' :
+                                        project.finalResult === 'ไม่บรรลุตามเป้าหมาย' ? 'bg-red-100 text-red-700' :
+                                        'bg-yellow-100 text-yellow-700'
+                                    }">
+                                        ${project.finalResult || 'รอประเมิน'}
+                                    </span>
+                                </div>
+                            </div>
+                        </div>
+                    `).join('');
+                }
+            } catch (error) {
+                console.error('Error updating PDF projects list:', error);
+            }
+        }
+
+        // PDF Generation Functions
+        function generateSummaryPDF() {
+            try {
+                if (!allProjectsData || allProjectsData.length === 0) {
+                    alert('ไม่มีข้อมูลโครงการสำหรับสร้างรายงาน');
+                    return;
+                }
+                
+                // Simple implementation - you can enhance this
+                const doc = new jsPDF();
+                
+                // Add Thai font support (basic)
+                doc.setFontSize(16);
+                doc.text('Project Summary Report', 20, 20);
+                
+                doc.setFontSize(12);
+                doc.text(`Total Projects: ${allProjectsData.length}`, 20, 40);
+                doc.text(`Success Projects: ${allProjectsData.filter(p => p.finalResult === 'บรรลุตามเป้าหมาย').length}`, 20, 50);
+                doc.text(`Failed Projects: ${allProjectsData.filter(p => p.finalResult === 'ไม่บรรลุตามเป้าหมาย').length}`, 20, 60);
+                
+                doc.save('project-summary-report.pdf');
+                alert('สร้างรายงานสรุปภาพรวม PDF สำเร็จ!');
+            } catch (error) {
+                console.error('Error generating summary PDF:', error);
+                alert('เกิดข้อผิดพลาดในการสร้าง PDF');
+            }
+        }
+
+        function generateAllProjectsPDF() {
+            try {
+                if (!allProjectsData || allProjectsData.length === 0) {
+                    alert('ไม่มีข้อมูลโครงการสำหรับสร้างรายงาน');
+                    return;
+                }
+                
+                const doc = new jsPDF();
+                doc.setFontSize(16);
+                doc.text('All Projects Report', 20, 20);
+                
+                let yPosition = 40;
+                allProjectsData.forEach((project, index) => {
+                    if (yPosition > 280) {
+                        doc.addPage();
+                        yPosition = 20;
+                    }
+                    
+                    doc.setFontSize(12);
+                    doc.text(`${index + 1}. ${project.projectName || 'Unnamed Project'}`, 20, yPosition);
+                    doc.text(`Department: ${project.department || 'N/A'}`, 25, yPosition + 10);
+                    doc.text(`Status: ${project.finalResult || 'Pending'}`, 25, yPosition + 20);
+                    
+                    yPosition += 35;
+                });
+                
+                doc.save('all-projects-report.pdf');
+                alert('สร้างรายงานโครงการทั้งหมด PDF สำเร็จ!');
+            } catch (error) {
+                console.error('Error generating all projects PDF:', error);
+                alert('เกิดข้อผิดพลาดในการสร้าง PDF');
+            }
+        }
+
+        function generateDepartmentPDF() {
+            try {
+                if (!allProjectsData || allProjectsData.length === 0) {
+                    alert('ไม่มีข้อมูลโครงการสำหรับสร้างรายงาน');
+                    return;
+                }
+                
+                const doc = new jsPDF();
+                doc.setFontSize(16);
+                doc.text('Department Report', 20, 20);
+                
+                const departments = ['วิชาการ', 'งบประมาณ', 'บุคคล', 'บริหารทั่วไป'];
+                let yPosition = 40;
+                
+                departments.forEach(dept => {
+                    const deptProjects = allProjectsData.filter(p => p.department === dept);
+                    
+                    if (yPosition > 250) {
+                        doc.addPage();
+                        yPosition = 20;
+                    }
+                    
+                    doc.setFontSize(14);
+                    doc.text(`Department: ${dept} (${deptProjects.length} projects)`, 20, yPosition);
+                    yPosition += 20;
+                    
+                    deptProjects.forEach((project, index) => {
+                        if (yPosition > 280) {
+                            doc.addPage();
+                            yPosition = 20;
+                        }
+                        
+                        doc.setFontSize(10);
+                        doc.text(`  ${index + 1}. ${project.projectName || 'Unnamed'}`, 25, yPosition);
+                        yPosition += 10;
+                    });
+                    
+                    yPosition += 10;
+                });
+                
+                doc.save('department-report.pdf');
+                alert('สร้างรายงานตามฝ่าย PDF สำเร็จ!');
+            } catch (error) {
+                console.error('Error generating department PDF:', error);
+                alert('เกิดข้อผิดพลาดในการสร้าง PDF');
+            }
+        }
+
+        function generateProjectPDF(projectId) {
+            try {
+                const project = allProjectsData.find(p => p.id == projectId);
+                if (!project) {
+                    alert('ไม่พบข้อมูลโครงการที่เลือก');
+                    return;
+                }
+                
+                const doc = new jsPDF();
+                doc.setFontSize(16);
+                doc.text('Project Evaluation Report', 20, 20);
+                
+                doc.setFontSize(12);
+                doc.text(`Project Name: ${project.projectName || 'N/A'}`, 20, 40);
+                doc.text(`Department: ${project.department || 'N/A'}`, 20, 50);
+                doc.text(`Responsible: ${project.responsible || 'N/A'}`, 20, 60);
+                doc.text(`Status: ${project.finalResult || 'Pending'}`, 20, 70);
+                doc.text(`Reporter: ${project.reporterName || 'N/A'}`, 20, 80);
+                doc.text(`Date: ${project.reportDate || 'N/A'}`, 20, 90);
+                
+                const fileName = `project-${project.projectName || 'unnamed'}-report.pdf`;
+                doc.save(fileName);
+                alert('สร้างรายงานโครงการรายบุคคล PDF สำเร็จ!');
+            } catch (error) {
+                console.error('Error generating project PDF:', error);
+                alert('เกิดข้อผิดพลาดในการสร้าง PDF');
+            }
+        }
+
+        function generateSingleProjectPDF() {
+            try {
+                const formData = new FormData(document.getElementById('projectForm'));
+                const data = collectFormData(formData);
+                
+                if (!data.projectName) {
+                    alert('กรุณากรอกชื่อโครงการก่อนส่งออก PDF');
+                    return;
+                }
+                
+                const doc = new jsPDF();
+                doc.setFontSize(16);
+                doc.text('Project Evaluation Form', 20, 20);
+                
+                doc.setFontSize(12);
+                doc.text(`Project Name: ${data.projectName || 'N/A'}`, 20, 40);
+                doc.text(`Department: ${data.department || 'N/A'}`, 20, 50);
+                doc.text(`Responsible: ${data.responsible || 'N/A'}`, 20, 60);
+                doc.text(`Status: ${data.finalResult || 'N/A'}`, 20, 70);
+                doc.text(`Reporter: ${data.reporterName || 'N/A'}`, 20, 80);
+                doc.text(`Date: ${data.reportDate || 'N/A'}`, 20, 90);
+                
+                const fileName = `form-${data.projectName || 'project'}-${new Date().toISOString().split('T')[0]}.pdf`;
+                doc.save(fileName);
+                alert('ส่งออก PDF สำเร็จ!');
+            } catch (error) {
+                console.error('Error generating single project PDF:', error);
+                alert('เกิดข้อผิดพลาดในการสร้าง PDF');
+            }
+        }
+
+        // Form handling
+        function collectFormData(formData) {
+            const data = {};
+            for (let [key, value] of formData.entries()) {
+                data[key] = value;
+            }
+            data.timestamp = new Date().toISOString();
+            return data;
+        }
+
+        function saveToStorage(data) {
+            try {
+                let projects = JSON.parse(localStorage.getItem('projects') || '[]');
+                projects.push(data);
+                localStorage.setItem('projects', JSON.stringify(projects));
+                console.log('Data saved to localStorage');
+            } catch (error) {
+                console.error('Error saving to storage:', error);
+            }
+        }
+
+        // Form submission
+        document.getElementById('projectForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            try {
+                const formData = new FormData(this);
+                const data = collectFormData(formData);
+                
+                saveToStorage(data);
+                
+                alert('บันทึกข้อมูลเรียบร้อยแล้ว!');
+                
+                // Reset form and refresh dashboard
+                this.reset();
+                const dateInput = document.querySelector('input[name="reportDate"]');
+                if (dateInput) {
+                    dateInput.value = new Date().toISOString().split('T')[0];
+                }
+                
+                // Refresh dashboard data
+                loadDashboardData();
+                
+                console.log('Form submitted successfully');
+            } catch (error) {
+                console.error('Error submitting form:', error);
+                alert('เกิดข้อผิดพลาดในการบันทึกข้อมูล');
+            }
+        });
+
+        // Sync Functions (placeholder)
+        function syncFromSheets() {
+            console.log('Sync from sheets called');
+            alert('ฟีเจอร์นี้จะใช้งานได้เมื่อตั้งค่า Google Apps Script แล้ว');
+        }
+
+        function testScriptConnection() {
+            alert('ฟีเจอร์นี้จะใช้งานได้เมื่อตั้งค่า Google Apps Script แล้ว');
         }
 
         function showScriptInstructions() {
-            document.getElementById('instructionsModal').classList.remove('hidden');
+            alert('กรุณาดูคู่มือการตั้งค่า Google Apps Script ในเอกสารประกอบ');
         }
 
-        function closeInstructions() {
-            document.getElementById('instructionsModal').classList.add('hidden');
-        }
-
-        // Copy script code function
-        function copyScriptCode() {
-            const scriptCode = document.getElementById('scriptCodeBlock').textContent;
-            
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(scriptCode).then(() => {
-                    alert('คัดลอกโค้ดเรียบร้อยแล้ว!\n\nขั้นตอนต่อไป:\n1. ไปที่ script.google.com\n2. สร้างโปรเจกต์ใหม่\n3. วางโค้ดที่คัดลอกมา\n4. แก้ไข YOUR_SPREADSHEET_ID_HERE\n5. Deploy เป็น Web app');
-                }).catch(() => {
-                    fallbackCopy(scriptCode);
-                });
-            } else {
-                fallbackCopy(scriptCode);
-            }
-            
-            function fallbackCopy(text) {
-                const textArea = document.createElement('textarea');
-                textArea.value = text;
-                textArea.style.position = 'fixed';
-                textArea.style.left = '-999999px';
-                textArea.style.top = '-999999px';
-                document.body.appendChild(textArea);
-                textArea.focus();
-                textArea.select();
-                try {
-                    document.execCommand('copy');
-                    alert('คัดลอกโค้ดเรียบร้อยแล้ว!');
-                } catch (err) {
-                    alert('ไม่สามารถคัดลอกอัตโนมัติได้\nกรุณาคัดลอกโค้ดในกล่องด้วยตนเอง');
-                }
-                document.body.removeChild(textArea);
-            }
-        }
-
-        // Form data collection
-        function collectFormData(formData) {
-            const data = {};
-            
-            // Handle regular form fields
-            for (let [key, value] of formData.entries()) {
-                if (data[key]) {
-                    // Handle multiple values (like checkboxes)
-                    if (Array.isArray(data[key])) {
-                        data[key].push(value);
-                    } else {
-                        data[key] = [data[key], value];
-                    }
-                } else {
-                    data[key] = value;
-                }
-            }
-            
-            // Handle checkbox groups properly
-            const checkboxes = document.querySelectorAll('input[type="checkbox"][name="problems"]:checked');
-            const selectedProblems = Array.from(checkboxes).map(cb => cb.value);
-            data.problems = selectedProblems;
-            
-            // Collect KPI data
-            const kpiData = [];
-            for (let i = 1; i <= kpiCounter; i++) {
-                const kpi = data[`kpi${i}`];
-                const target = data[`target${i}`];
-                const result = data[`result${i}`];
-                const summary = data[`summary${i}`];
-                
-                if (kpi && kpi.trim()) {
-                    kpiData.push({
-                        kpi: kpi,
-                        target: target || 0,
-                        result: result || 0,
-                        summary: summary || ''
-                    });
-                }
-            }
-            data.kpiData = kpiData;
-            
-            return data;
+        console.log('Script loaded successfully');
+    </script>
+</body>
+</html>
