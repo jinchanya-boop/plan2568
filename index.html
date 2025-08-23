@@ -1782,6 +1782,12 @@ function doGet(e) {
             document.getElementById('formSection').classList.remove('hidden');
         }
 
+        // Add missing function
+        function showPDFExports() {
+            updatePDFProjectsList();
+            document.getElementById('pdfModal').classList.remove('hidden');
+        }
+
         // Signature pad functions
         function initializeSignaturePad() {
             const canvas = document.getElementById('signatureCanvas');
