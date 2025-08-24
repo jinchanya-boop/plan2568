@@ -5,20 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ระบบประเมินโครงการ - โรงเรียนสา</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script>
-        // เพิ่มการตรวจสอบ jsPDF หลังจากโหลด
-        window.addEventListener('load', function() {
-            if (typeof window.jspdf === 'undefined') {
-                console.error('jsPDF not loaded properly');
-                // ลองโหลด jsPDF อีกครั้ง
-                const script = document.createElement('script');
-                script.src = 'https://unpkg.com/jspdf@latest/dist/jspdf.umd.min.js';
-                document.head.appendChild(script);
-            }
-        });
-    </script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <!-- แก้ไข jsPDF URL และเพิ่ม html2canvas -->
+    <script src="https://unpkg.com/jspdf@latest/dist/jspdf.umd.min.js"></script>
+    <script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -799,7 +788,19 @@ function doGet(e) {
         document.addEventListener('DOMContentLoaded', function() {
             initializeSignaturePad();
             loadStoredConfig();
-            autoConnectToGoogleScript();
+            
+            // รอให้ jsPDF โหลดเสร็จก่อน
+            const checkJsPDF = () => {
+                if (typeof window.jspdf !== 'undefined') {
+                    console.log('jsPDF loaded successfully');
+                    autoConnectToGoogleScript();
+                } else {
+                    console.log('Waiting for jsPDF to load...');
+                    setTimeout(checkJsPDF, 100);
+                }
+            };
+            checkJsPDF();
+            
             document.querySelector('input[name="reportDate"]').value = new Date().toISOString().split('T')[0];
         });
 
@@ -945,13 +946,40 @@ function doGet(e) {
             return data;
         }
 
-        // Simple form submission method
-        function submitToGoogleScript(data) {
+        // แก้ไขฟังก์ชันส่งข้อมูลไป Google Sheets
+        async function submitToGoogleScript(data) {
+            const scriptUrl = document.getElementById('scriptUrl').value || DEFAULT_SCRIPT_URL;
+            
+            try {
+                const response = await fetch(scriptUrl, {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify(data),
+                    mode: 'no-cors' // เพิ่มเพื่อหลีกเลี่ยง CORS
+                });
+                
+                // เนื่องจากใช้ no-cors จึงไม่สามารถอ่าน response ได้
+                // ถือว่าสำเร็จ
+                console.log('Data sent to Google Sheets');
+                return { success: true };
+                
+            } catch (error) {
+                console.error('Error sending to Google Sheets:', error);
+                // ลองใช้วิธีแบบเดิมด้วย form submission
+                return submitViaForm(data);
+            }
+        }
+        
+        // ฟังก์ชันส่งข้อมูลแบบเดิมเป็น fallback
+        function submitViaForm(data) {
             const scriptUrl = document.getElementById('scriptUrl').value || DEFAULT_SCRIPT_URL;
             
             const form = document.createElement('form');
             form.method = 'POST';
             form.action = scriptUrl;
+            form.target = '_blank'; // เปิดในแท็บใหม่
             form.style.display = 'none';
             
             const jsonInput = document.createElement('input');
@@ -963,8 +991,11 @@ function doGet(e) {
             document.body.appendChild(form);
             form.submit();
             
+            // ลบ form หลังส่ง
             setTimeout(() => {
-                document.body.removeChild(form);
+                if (document.body.contains(form)) {
+                    document.body.removeChild(form);
+                }
             }, 1000);
             
             return Promise.resolve({ success: true });
@@ -1271,12 +1302,18 @@ function doGet(e) {
             generateIndividualProjectPDF(projectId);
         }
 
+        // ฟังก์ชันตรวจสอบ jsPDF พร้อมแจ้งเตือน
+        function checkjsPDFAvailable() {
+            if (typeof window.jspdf === 'undefined') {
+                alert('ระบบ PDF ยังไม่พร้อม กรุณารอสักครู่หรือรีเฟรชหน้าใหม่');
+                return false;
+            }
+            return true;
+        }
+
         // Enhanced PDF Generation Functions with better error handling
         function generateSummaryPDF() {
-            if (typeof window.jspdf === 'undefined') {
-                alert('กำลังโหลดไลบรารี PDF กรุณารอสักครู่แล้วลองใหม่');
-                return;
-            }
+            if (!checkjsPDFAvailable()) return;
             
             try {
                 const { jsPDF } = window.jspdf;
@@ -1386,10 +1423,7 @@ function doGet(e) {
         }
 
         function generateAllProjectsPDF() {
-            if (typeof window.jspdf === 'undefined') {
-                alert('กำลังโหลดไลบรารี PDF กรุณารอสักครู่แล้วลองใหม่');
-                return;
-            }
+            if (!checkjsPDFAvailable()) return;
             
             try {
                 const tempDiv = document.createElement('div');
@@ -1488,10 +1522,7 @@ function doGet(e) {
         }
 
         function generateDepartmentPDF() {
-            if (typeof window.jspdf === 'undefined') {
-                alert('กำลังโหลดไลบรารี PDF กรุณารอสักครู่แล้วลองใหม่');
-                return;
-            }
+            if (!checkjsPDFAvailable()) return;
             
             try {
                 const tempDiv = document.createElement('div');
@@ -1586,10 +1617,7 @@ function doGet(e) {
         }
 
         function generateDetailedProjectPDF(data) {
-            if (typeof window.jspdf === 'undefined') {
-                alert('กำลังโหลดไลบรารี PDF กรุณารอสักครู่แล้วลองใหม่');
-                return;
-            }
+            if (!checkjsPDFAvailable()) return;
             
             try {
                 const tempDiv = document.createElement('div');
