@@ -1,5 +1,8 @@
 function generateDetailedProjectPDF(data) {
+            if (!checkPDFLibraries()) return;
+            
             try {
+                const jsPDFInstance = window.jspdf?.jsPDF || window.jsPDF || jsPDF;
                 const tempDiv = document.createElement('div');
                 tempDiv.style.padding = '40px';
                 tempDiv.style.fontFamily = 'Sarabun, sans-serif';
@@ -66,7 +69,7 @@ function generateDetailedProjectPDF(data) {
                     document.body.removeChild(tempDiv);
                     
                     const imgData = canvas.toDataURL('image/png');
-                    const pdf = new jsPDF('p', 'mm', 'a4');
+                    const pdf = new jsPDFInstance('p', 'mm', 'a4');
                     
                     const imgWidth = 210;
                     const pageHeight = 295;
@@ -99,7 +102,159 @@ function generateDetailedProjectPDF(data) {
             }
         }
 
-        function generateSingleProjectPDF() {
+        // Alternative simple PDF export using browser's print dialog
+        function generateSimplePDF(title, content) {
+            const printWindow = window.open('', '_blank');
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html>
+                <head>
+                    <title>${title}</title>
+                    <meta charset="UTF-8">
+                    <style>
+                        body { 
+                            font-family: 'Sarabun', Arial, sans-serif; 
+                            margin: 20px; 
+                            line-height: 1.6;
+                        }
+                        h1, h2, h3 { color: #333; }
+                        .header { text-align: center; margin-bottom: 30px; }
+                        .section { margin-bottom: 20px; padding: 15px; background: #f9f9f9; border-radius: 5px; }
+                        .project-item { 
+                            background: white; 
+                            padding: 10px; 
+                            margin: 10px 0; 
+                            border-left: 4px solid #3B82F6; 
+                            border-radius: 3px;
+                        }
+                        @media print {
+                            body { font-size: 12px; }
+                            .section { break-inside: avoid; }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <div class="header">
+                        <h1>${title}</h1>
+                        <p>โรงเรียนสา อำเภอเวียงสา จังหวัดน่าน</p>
+                        <p>ปีงบประมาณ 2568</p>
+                    </div>
+                    ${content}
+                    <div style="margin-top: 30px; text-align: center; font-size: 12px; color: #666;">
+                        <p>สร้างเมื่อ: ${new Date().toLocaleString('th-TH')}</p>
+                    </div>
+                </body>
+                </html>
+            `);
+            printWindow.document.close();
+            
+            // Wait for content to load, then trigger print
+            setTimeout(() => {
+                printWindow.print();
+            }, 500);
+        }
+
+        // Backup PDF functions using simple print dialog
+        function generateSummaryPDFSimple() {
+            if (allProjectsData.length === 0) {
+                alert('ไม่มีข้อมูลโครงการที่จะส่งออก');
+                return;
+            }
+            
+            const content = `
+                <div class="section">
+                    <h3>สถิติภาพรวม</h3>
+                    <p><strong>โครงการทั้งหมด:</strong> ${allProjectsData.length} โครงการ</p>
+                    <p><strong>บรรลุเป้าหมาย:</strong> ${allProjectsData.filter(p => p.finalResult === 'บรรลุตามเป้าหมาย').length} โครงการ</p>
+                    <p><strong>ไม่บรรลุเป้าหมาย:</strong> ${allProjectsData.filter(p => p.finalResult === 'ไม่บรรลุตามเป้าหมาย').length} โครงการ</p>
+                    <p><strong>รอดำเนินการ:</strong> ${allProjectsData.filter(p => !p.finalResult).length} โครงการ</p>
+                </div>
+                
+                <div class="section">
+                    <h3>สถิติแยกตามฝ่าย</h3>
+                    ${['วิชาการ', 'งบประมาณ', 'บุคคล', 'บริหารทั่วไป'].map(dept => {
+                        const deptProjects = allProjectsData.filter(p => p.department === dept);
+                        const successCount = deptProjects.filter(p => p.finalResult === 'บรรลุตามเป้าหมาย').length;
+                        const successRate = deptProjects.length > 0 ? ((successCount / deptProjects.length) * 100).toFixed(1) : 0;
+                        return `<p><strong>ฝ่าย${dept}:</strong> ${deptProjects.length} โครงการ (ความสำเร็จ ${successRate}%)</p>`;
+                    }).join('')}
+                </div>
+                
+                <div class="section">
+                    <h3>โครงการล่าสุด</h3>
+                    ${allProjectsData.slice(-10).reverse().map(project => `
+                        <div class="project-item">
+                            <h4>${project.projectName}</h4>
+                            <p><strong>ฝ่าย:</strong> ${project.department} | <strong>ผู้รับผิดชอบ:</strong> ${project.responsible}</p>
+                            <p><strong>สถานะ:</strong> ${project.finalResult || 'รอประเมิน'} | <strong>วันที่:</strong> ${project.reportDate}</p>
+                        </div>
+                    `).join('')}
+                </div>
+            `;
+            
+            generateSimplePDF('รายงานสรุปภาพรวมโครงการ', content);
+        }
+
+        // Modify the main PDF functions to use fallback
+        function generateSummaryPDFWithFallback() {
+            // Try advanced PDF first, fallback to simple version
+            if (checkPDFLibraries()) {
+                generateSummaryPDF();
+            } else {
+                if (confirm('ไลบรารี PDF ไม่สามารถใช้งานได้\nต้องการใช้วิธีการพิมพ์แทนหรือไม่?')) {
+                    generateSummaryPDFSimple();
+                }
+            }
+        }
+
+        function generateAllProjectsPDFWithFallback() {
+            if (checkPDFLibraries()) {
+                generateAllProjectsPDF();
+            } else {
+                if (confirm('ไลบรารี PDF ไม่สามารถใช้งานได้\nต้องการใช้วิธีการพิมพ์แทนหรือไม่?')) {
+                    const content = allProjectsData.map((project, index) => `
+                        <div class="project-item">
+                            <h3>${index + 1}. ${project.projectName}</h3>
+                            <p><strong>ฝ่าย:</strong> ${project.department || '-'} | <strong>ผู้รับผิดชอบ:</strong> ${project.responsible || '-'}</p>
+                            <p><strong>สรุปผลการประเมิน:</strong> ${project.finalResult || 'รอประเมิน'}</p>
+                            <p><strong>ข้อเสนอแนะ:</strong> ${project.suggestions || '-'}</p>
+                        </div>
+                    `).join('');
+                    generateSimplePDF('รายงานโครงการทั้งหมด', content);
+                }
+            }
+        }
+
+        function generateDepartmentPDFWithFallback() {
+            if (checkPDFLibraries()) {
+                generateDepartmentPDF();
+            } else {
+                if (confirm('ไลบรารี PDF ไม่สามารถใช้งานได้\nต้องการใช้วิธีการพิมพ์แทนหรือไม่?')) {
+                    const departments = ['วิชาการ', 'งบประมาณ', 'บุคคล', 'บริหารทั่วไป'];
+                    const content = departments.map(dept => {
+                        const deptProjects = allProjectsData.filter(p => p.department === dept);
+                        const successCount = deptProjects.filter(p => p.finalResult === 'บรรลุตามเป้าหมาย').length;
+                        const successRate = deptProjects.length > 0 ? ((successCount / deptProjects.length) * 100).toFixed(1) : 0;
+                        
+                        return `
+                            <div class="section">
+                                <h2>ฝ่าย${dept}</h2>
+                                <p>จำนวนโครงการ: ${deptProjects.length} โครงการ | อัตราความสำเร็จ: ${successRate}%</p>
+                                ${deptProjects.length === 0 ? '<p>ไม่มีโครงการในฝ่ายนี้</p>' : 
+                                    deptProjects.map((project, index) => `
+                                        <div class="project-item">
+                                            <h4>${index + 1}. ${project.projectName}</h4>
+                                            <p><strong>ผู้รับผิดชอบ:</strong> ${project.responsible || '-'} | <strong>สถานะ:</strong> ${project.finalResult || 'รอประเมิน'}</p>
+                                        </div>
+                                    `).join('')
+                                }
+                            </div>
+                        `;
+                    }).join('');
+                    generateSimplePDF('รายงานโครงการแยกตามฝ่าย', content);
+                }
+            }
+        }
             const formData = new FormData(document.getElementById('projectForm'));
             const data = collectFormData(formData);
             
@@ -420,8 +575,8 @@ function generateDetailedProjectPDF(data) {
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>ระบบประเมินโครงการ - โรงเรียนสา</title>
     <script src="https://cdn.tailwindcss.com"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
-    <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
+    <script src="https://unpkg.com/jspdf@2.5.1/dist/jspdf.umd.min.js"></script>
+    <script src="https://unpkg.com/html2canvas@1.4.1/dist/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
@@ -603,19 +758,19 @@ function generateDetailedProjectPDF(data) {
                     
                     <div class="mb-6">
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-4">
-                            <button onclick="generateSummaryPDF()" class="pdf-item bg-blue-50 border-2 border-blue-200 rounded-lg p-4 text-center hover:bg-blue-100">
+                            <button onclick="generateSummaryPDFWithFallback()" class="pdf-item bg-blue-50 border-2 border-blue-200 rounded-lg p-4 text-center hover:bg-blue-100">
                                 <div class="text-3xl mb-2">📊</div>
                                 <h4 class="font-semibold text-blue-800">รายงานสรุปภาพรวม</h4>
                                 <p class="text-sm text-blue-600 mt-1">สถิติและกราฟสรุปทั้งหมด</p>
                             </button>
                             
-                            <button onclick="generateAllProjectsPDF()" class="pdf-item bg-green-50 border-2 border-green-200 rounded-lg p-4 text-center hover:bg-green-100">
+                            <button onclick="generateAllProjectsPDFWithFallback()" class="pdf-item bg-green-50 border-2 border-green-200 rounded-lg p-4 text-center hover:bg-green-100">
                                 <div class="text-3xl mb-2">📋</div>
                                 <h4 class="font-semibold text-green-800">รายงานโครงการทั้งหมด</h4>
                                 <p class="text-sm text-green-600 mt-1">รายละเอียดโครงการครบถ้วน</p>
                             </button>
                             
-                            <button onclick="generateDepartmentPDF()" class="pdf-item bg-purple-50 border-2 border-purple-200 rounded-lg p-4 text-center hover:bg-purple-100">
+                            <button onclick="generateDepartmentPDFWithFallback()" class="pdf-item bg-purple-50 border-2 border-purple-200 rounded-lg p-4 text-center hover:bg-purple-100">
                                 <div class="text-3xl mb-2">🏢</div>
                                 <h4 class="font-semibold text-purple-800">รายงานตามฝ่าย</h4>
                                 <p class="text-sm text-purple-600 mt-1">แยกตามฝ่ายต่างๆ</p>
