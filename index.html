@@ -102,158 +102,249 @@ function generateDetailedProjectPDF(data) {
             }
         }
 
-        // Alternative simple PDF export using browser's print dialog
-        function generateSimplePDF(title, content) {
-            const printWindow = window.open('', '_blank');
-            printWindow.document.write(`
-                <!DOCTYPE html>
-                <html>
-                <head>
-                    <title>${title}</title>
-                    <meta charset="UTF-8">
-                    <style>
-                        body { 
-                            font-family: 'Sarabun', Arial, sans-serif; 
-                            margin: 20px; 
-                            line-height: 1.6;
-                        }
-                        h1, h2, h3 { color: #333; }
-                        .header { text-align: center; margin-bottom: 30px; }
-                        .section { margin-bottom: 20px; padding: 15px; background: #f9f9f9; border-radius: 5px; }
-                        .project-item { 
-                            background: white; 
-                            padding: 10px; 
-                            margin: 10px 0; 
-                            border-left: 4px solid #3B82F6; 
-                            border-radius: 3px;
-                        }
-                        @media print {
-                            body { font-size: 12px; }
-                            .section { break-inside: avoid; }
-                        }
-                    </style>
-                </head>
-                <body>
-                    <div class="header">
-                        <h1>${title}</h1>
-                        <p>โรงเรียนสา อำเภอเวียงสา จังหวัดน่าน</p>
-                        <p>ปีงบประมาณ 2568</p>
-                    </div>
-                    ${content}
-                    <div style="margin-top: 30px; text-align: center; font-size: 12px; color: #666;">
-                        <p>สร้างเมื่อ: ${new Date().toLocaleString('th-TH')}</p>
-                    </div>
-                </body>
-                </html>
-            `);
-            printWindow.document.close();
-            
-            // Wait for content to load, then trigger print
-            setTimeout(() => {
-                printWindow.print();
-            }, 500);
-        }
-
-        // Backup PDF functions using simple print dialog
-        function generateSummaryPDFSimple() {
+        // Working PDF generation functions
+        function generateSummaryPDFWithFallback() {
             if (allProjectsData.length === 0) {
                 alert('ไม่มีข้อมูลโครงการที่จะส่งออก');
                 return;
             }
             
             const content = `
-                <div class="section">
-                    <h3>สถิติภาพรวม</h3>
-                    <p><strong>โครงการทั้งหมด:</strong> ${allProjectsData.length} โครงการ</p>
-                    <p><strong>บรรลุเป้าหมาย:</strong> ${allProjectsData.filter(p => p.finalResult === 'บรรลุตามเป้าหมาย').length} โครงการ</p>
-                    <p><strong>ไม่บรรลุเป้าหมาย:</strong> ${allProjectsData.filter(p => p.finalResult === 'ไม่บรรลุตามเป้าหมาย').length} โครงการ</p>
-                    <p><strong>รอดำเนินการ:</strong> ${allProjectsData.filter(p => !p.finalResult).length} โครงการ</p>
+                <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #3b82f6; padding-bottom: 20px;">
+                    <h1 style="font-size: 24px; font-weight: bold; color: #1f2937;">รายงานสรุปภาพรวมโครงการ</h1>
+                    <h2 style="font-size: 18px; color: #4b5563;">โรงเรียนสา อำเภอเวียงสา จังหวัดน่าน</h2>
+                    <p style="font-size: 16px; color: #6b7280;">ปีงบประมาณ 2568</p>
                 </div>
                 
-                <div class="section">
-                    <h3>สถิติแยกตามฝ่าย</h3>
+                <div style="margin-bottom: 30px; background: #f8fafc; padding: 20px; border-radius: 8px;">
+                    <h3 style="font-size: 20px; font-weight: bold; margin-bottom: 15px; color: #2563eb;">สถิติภาพรวม</h3>
+                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px;">
+                        <div>
+                            <p style="margin: 8px 0;"><strong>โครงการทั้งหมด:</strong> ${allProjectsData.length} โครงการ</p>
+                            <p style="margin: 8px 0;"><strong>บรรลุเป้าหมาย:</strong> ${allProjectsData.filter(p => p.finalResult === 'บรรลุตามเป้าหมาย').length} โครงการ</p>
+                        </div>
+                        <div>
+                            <p style="margin: 8px 0;"><strong>ไม่บรรลุเป้าหมาย:</strong> ${allProjectsData.filter(p => p.finalResult === 'ไม่บรรลุตามเป้าหมาย').length} โครงการ</p>
+                            <p style="margin: 8px 0;"><strong>รอดำเนินการ:</strong> ${allProjectsData.filter(p => !p.finalResult).length} โครงการ</p>
+                        </div>
+                    </div>
+                </div>
+                
+                <div style="margin-bottom: 30px; background: #f0fdf4; padding: 20px; border-radius: 8px;">
+                    <h3 style="font-size: 20px; font-weight: bold; margin-bottom: 15px; color: #059669;">สถิติแยกตามฝ่าย</h3>
                     ${['วิชาการ', 'งบประมาณ', 'บุคคล', 'บริหารทั่วไป'].map(dept => {
                         const deptProjects = allProjectsData.filter(p => p.department === dept);
                         const successCount = deptProjects.filter(p => p.finalResult === 'บรรลุตามเป้าหมาย').length;
                         const successRate = deptProjects.length > 0 ? ((successCount / deptProjects.length) * 100).toFixed(1) : 0;
-                        return `<p><strong>ฝ่าย${dept}:</strong> ${deptProjects.length} โครงการ (ความสำเร็จ ${successRate}%)</p>`;
+                        return `<p style="margin: 8px 0; padding: 8px; background: white; border-radius: 4px; border-left: 4px solid #059669;"><strong>ฝ่าย${dept}:</strong> ${deptProjects.length} โครงการ (ความสำเร็จ ${successRate}%)</p>`;
                     }).join('')}
                 </div>
                 
-                <div class="section">
-                    <h3>โครงการล่าสุด</h3>
+                <div style="background: #fef2f2; padding: 20px; border-radius: 8px;">
+                    <h3 style="font-size: 20px; font-weight: bold; margin-bottom: 15px; color: #dc2626;">โครงการล่าสุด</h3>
                     ${allProjectsData.slice(-10).reverse().map(project => `
-                        <div class="project-item">
-                            <h4>${project.projectName}</h4>
-                            <p><strong>ฝ่าย:</strong> ${project.department} | <strong>ผู้รับผิดชอบ:</strong> ${project.responsible}</p>
-                            <p><strong>สถานะ:</strong> ${project.finalResult || 'รอประเมิน'} | <strong>วันที่:</strong> ${project.reportDate}</p>
+                        <div style="background: white; padding: 15px; margin: 10px 0; border-radius: 6px; border-left: 4px solid #dc2626;">
+                            <h4 style="font-weight: bold; margin-bottom: 8px; color: #1f2937;">${project.projectName}</h4>
+                            <p style="margin: 4px 0;"><strong>ฝ่าย:</strong> ${project.department} | <strong>ผู้รับผิดชอบ:</strong> ${project.responsible}</p>
+                            <p style="margin: 4px 0;"><strong>สถานะ:</strong> ${project.finalResult || 'รอประเมิน'} | <strong>วันที่:</strong> ${project.reportDate}</p>
                         </div>
                     `).join('')}
                 </div>
             `;
             
-            generateSimplePDF('รายงานสรุปภาพรวมโครงการ', content);
-        }
-
-        // Modify the main PDF functions to use fallback
-        function generateSummaryPDFWithFallback() {
-            // Try advanced PDF first, fallback to simple version
-            if (checkPDFLibraries()) {
-                generateSummaryPDF();
-            } else {
-                if (confirm('ไลบรารี PDF ไม่สามารถใช้งานได้\nต้องการใช้วิธีการพิมพ์แทนหรือไม่?')) {
-                    generateSummaryPDFSimple();
-                }
-            }
+            openPrintWindow('รายงานสรุปภาพรวมโครงการ', content);
         }
 
         function generateAllProjectsPDFWithFallback() {
-            if (checkPDFLibraries()) {
-                generateAllProjectsPDF();
-            } else {
-                if (confirm('ไลบรารี PDF ไม่สามารถใช้งานได้\nต้องการใช้วิธีการพิมพ์แทนหรือไม่?')) {
-                    const content = allProjectsData.map((project, index) => `
-                        <div class="project-item">
-                            <h3>${index + 1}. ${project.projectName}</h3>
-                            <p><strong>ฝ่าย:</strong> ${project.department || '-'} | <strong>ผู้รับผิดชอบ:</strong> ${project.responsible || '-'}</p>
-                            <p><strong>สรุปผลการประเมิน:</strong> ${project.finalResult || 'รอประเมิน'}</p>
-                            <p><strong>ข้อเสนอแนะ:</strong> ${project.suggestions || '-'}</p>
-                        </div>
-                    `).join('');
-                    generateSimplePDF('รายงานโครงการทั้งหมด', content);
-                }
+            if (allProjectsData.length === 0) {
+                alert('ไม่มีข้อมูลโครงการที่จะส่งออก');
+                return;
             }
+            
+            const content = `
+                <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #10b981; padding-bottom: 20px;">
+                    <h1 style="font-size: 24px; font-weight: bold; color: #1f2937;">รายงานโครงการทั้งหมด</h1>
+                    <h2 style="font-size: 18px; color: #4b5563;">โรงเรียนสา อำเภอเวียงสา จังหวัดน่าน</h2>
+                    <p style="font-size: 16px; color: #6b7280;">ปีงบประมาณ 2568</p>
+                </div>
+                
+                ${allProjectsData.map((project, index) => `
+                    <div style="background: #f9fafb; padding: 20px; margin-bottom: 20px; border-radius: 8px; border: 1px solid #e5e7eb; page-break-inside: avoid;">
+                        <h3 style="font-size: 18px; font-weight: bold; margin-bottom: 15px; color: #1f2937; border-bottom: 2px solid #10b981; padding-bottom: 8px;">${index + 1}. ${project.projectName}</h3>
+                        
+                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 15px; margin-bottom: 15px;">
+                            <div>
+                                <p style="margin: 5px 0;"><strong>ฝ่าย:</strong> ${project.department || '-'}</p>
+                                <p style="margin: 5px 0;"><strong>ผู้รับผิดชอบ:</strong> ${project.responsible || '-'}</p>
+                                <p style="margin: 5px 0;"><strong>ระยะเวลา:</strong> ${project.timeline || '-'}</p>
+                            </div>
+                            <div>
+                                <p style="margin: 5px 0;"><strong>สรุปผลการประเมิน:</strong> 
+                                    <span style="color: ${project.finalResult === 'บรรลุตามเป้าหมาย' ? '#059669' : project.finalResult === 'ไม่บรรลุตามเป้าหมาย' ? '#dc2626' : '#d97706'}; font-weight: bold;">
+                                        ${project.finalResult || 'รอประเมิน'}
+                                    </span>
+                                </p>
+                                <p style="margin: 5px 0;"><strong>วันที่รายงาน:</strong> ${project.reportDate || '-'}</p>
+                                <p style="margin: 5px 0;"><strong>ผู้รายงาน:</strong> ${project.reporterName || '-'}</p>
+                            </div>
+                        </div>
+                        
+                        ${project.suggestions ? `
+                            <div style="background: #fef3c7; padding: 12px; border-radius: 6px; margin-top: 10px; border-left: 4px solid #f59e0b;">
+                                <p style="margin: 0;"><strong>ข้อเสนอแนะ:</strong> ${project.suggestions}</p>
+                            </div>
+                        ` : ''}
+                        
+                        ${project.kpiData && project.kpiData.length > 0 ? `
+                            <div style="margin-top: 15px; background: white; padding: 12px; border-radius: 6px;">
+                                <h4 style="font-weight: bold; margin-bottom: 8px; color: #6b21a8;">ตัวชี้วัดความสำเร็จ:</h4>
+                                ${project.kpiData.map(kpi => `
+                                    <div style="background: #f3f4f6; padding: 8px; margin: 5px 0; border-radius: 4px; border-left: 4px solid ${kpi.summary === 'บรรลุ' ? '#10b981' : '#ef4444'};">
+                                        <p style="margin: 0; font-size: 14px;"><strong>${kpi.kpi}:</strong> เป้าหมาย ${kpi.target}%, ผลลัพธ์ ${kpi.result}% 
+                                            <span style="color: ${kpi.summary === 'บรรลุ' ? '#059669' : '#dc2626'}; font-weight: bold;">(${kpi.summary})</span>
+                                        </p>
+                                    </div>
+                                `).join('')}
+                            </div>
+                        ` : ''}
+                    </div>
+                `).join('')}
+            `;
+            
+            openPrintWindow('รายงานโครงการทั้งหมด', content);
         }
 
         function generateDepartmentPDFWithFallback() {
-            if (checkPDFLibraries()) {
-                generateDepartmentPDF();
-            } else {
-                if (confirm('ไลบรารี PDF ไม่สามารถใช้งานได้\nต้องการใช้วิธีการพิมพ์แทนหรือไม่?')) {
-                    const departments = ['วิชาการ', 'งบประมาณ', 'บุคคล', 'บริหารทั่วไป'];
-                    const content = departments.map(dept => {
-                        const deptProjects = allProjectsData.filter(p => p.department === dept);
-                        const successCount = deptProjects.filter(p => p.finalResult === 'บรรลุตามเป้าหมาย').length;
-                        const successRate = deptProjects.length > 0 ? ((successCount / deptProjects.length) * 100).toFixed(1) : 0;
-                        
-                        return `
-                            <div class="section">
-                                <h2>ฝ่าย${dept}</h2>
-                                <p>จำนวนโครงการ: ${deptProjects.length} โครงการ | อัตราความสำเร็จ: ${successRate}%</p>
-                                ${deptProjects.length === 0 ? '<p>ไม่มีโครงการในฝ่ายนี้</p>' : 
-                                    deptProjects.map((project, index) => `
-                                        <div class="project-item">
-                                            <h4>${index + 1}. ${project.projectName}</h4>
-                                            <p><strong>ผู้รับผิดชอบ:</strong> ${project.responsible || '-'} | <strong>สถานะ:</strong> ${project.finalResult || 'รอประเมิน'}</p>
-                                        </div>
-                                    `).join('')
-                                }
-                            </div>
-                        `;
-                    }).join('');
-                    generateSimplePDF('รายงานโครงการแยกตามฝ่าย', content);
-                }
+            if (allProjectsData.length === 0) {
+                alert('ไม่มีข้อมูลโครงการที่จะส่งออก');
+                return;
             }
+            
+            const departments = ['วิชาการ', 'งบประมาณ', 'บุคคล', 'บริหารทั่วไป'];
+            
+            const content = `
+                <div style="text-align: center; margin-bottom: 30px; border-bottom: 2px solid #8b5cf6; padding-bottom: 20px;">
+                    <h1 style="font-size: 24px; font-weight: bold; color: #1f2937;">รายงานโครงการแยกตามฝ่าย</h1>
+                    <h2 style="font-size: 18px; color: #4b5563;">โรงเรียนสา อำเภอเวียงสา จังหวัดน่าน</h2>
+                    <p style="font-size: 16px; color: #6b7280;">ปีงบประมาณ 2568</p>
+                </div>
+                
+                ${departments.map(dept => {
+                    const deptProjects = allProjectsData.filter(p => p.department === dept);
+                    const successCount = deptProjects.filter(p => p.finalResult === 'บรรลุตามเป้าหมาย').length;
+                    const successRate = deptProjects.length > 0 ? ((successCount / deptProjects.length) * 100).toFixed(1) : 0;
+                    
+                    return `
+                        <div style="margin-bottom: 40px; page-break-inside: avoid;">
+                            <div style="background: linear-gradient(135deg, #3b82f6, #1e40af); color: white; padding: 20px; border-radius: 8px; margin-bottom: 20px;">
+                                <h2 style="font-size: 22px; font-weight: bold; margin-bottom: 10px;">ฝ่าย${dept}</h2>
+                                <p style="font-size: 16px; margin: 0;">จำนวนโครงการ: ${deptProjects.length} โครงการ | อัตราความสำเร็จ: ${successRate}% (${successCount}/${deptProjects.length})</p>
+                            </div>
+                            
+                            ${deptProjects.length === 0 ? `
+                                <div style="text-align: center; padding: 40px; background: #f3f4f6; border-radius: 8px; color: #6b7280;">
+                                    <p style="font-size: 16px; margin: 0;">ไม่มีโครงการในฝ่ายนี้</p>
+                                </div>
+                            ` : deptProjects.map((project, index) => `
+                                <div style="background: white; padding: 15px; margin-bottom: 15px; border-radius: 6px; border-left: 5px solid #3b82f6; box-shadow: 0 2px 4px rgba(0,0,0,0.1);">
+                                    <h3 style="font-weight: bold; margin-bottom: 10px; color: #1f2937;">${index + 1}. ${project.projectName}</h3>
+                                    <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 10px;">
+                                        <p style="margin: 3px 0;"><strong>ผู้รับผิดชอบ:</strong> ${project.responsible || '-'}</p>
+                                        <p style="margin: 3px 0;"><strong>สถานะ:</strong> 
+                                            <span style="color: ${project.finalResult === 'บรรลุตามเป้าหมาย' ? '#059669' : project.finalResult === 'ไม่บรรลุตามเป้าหมาย' ? '#dc2626' : '#d97706'}; font-weight: bold;">
+                                                ${project.finalResult || 'รอประเมิน'}
+                                            </span>
+                                        </p>
+                                    </div>
+                                    ${project.timeline ? `<p style="margin: 3px 0; font-size: 12px; color: #6b7280;"><strong>ระยะเวลา:</strong> ${project.timeline}</p>` : ''}
+                                </div>
+                            `).join('')}
+                        </div>
+                    `;
+                }).join('')}
+            `;
+            
+            openPrintWindow('รายงานโครงการแยกตามฝ่าย', content);
+        }
+
+        // Simple print window function
+        function openPrintWindow(title, content) {
+            const printWindow = window.open('', '_blank', 'width=800,height=600');
+            
+            if (!printWindow) {
+                alert('กรุณาอนุญาตให้เปิด popup window เพื่อส่งออก PDF');
+                return;
+            }
+            
+            printWindow.document.write(`
+                <!DOCTYPE html>
+                <html lang="th">
+                <head>
+                    <title>${title}</title>
+                    <meta charset="UTF-8">
+                    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+                    <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
+                    <style>
+                        body { 
+                            font-family: 'Sarabun', Arial, sans-serif; 
+                            margin: 40px; 
+                            line-height: 1.6;
+                            color: #1f2937;
+                            background: white;
+                        }
+                        h1, h2, h3, h4 { color: #1f2937; }
+                        .no-print { display: none; }
+                        @media print {
+                            body { 
+                                font-size: 12px; 
+                                margin: 20px;
+                            }
+                            .page-break { page-break-before: always; }
+                            .no-page-break { page-break-inside: avoid; }
+                        }
+                        @media screen {
+                            .print-button {
+                                position: fixed;
+                                top: 20px;
+                                right: 20px;
+                                background: #3b82f6;
+                                color: white;
+                                padding: 10px 20px;
+                                border: none;
+                                border-radius: 6px;
+                                cursor: pointer;
+                                font-size: 14px;
+                                font-weight: bold;
+                                box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+                                z-index: 1000;
+                            }
+                            .print-button:hover {
+                                background: #2563eb;
+                            }
+                        }
+                    </style>
+                </head>
+                <body>
+                    <button class="print-button no-print" onclick="window.print()">🖨️ พิมพ์/บันทึก PDF</button>
+                    ${content}
+                    <div style="margin-top: 40px; text-align: center; font-size: 12px; color: #6b7280; border-top: 1px solid #e5e7eb; padding-top: 20px;">
+                        <p>สร้างเมื่อ: ${new Date().toLocaleString('th-TH')}</p>
+                        <p>ระบบประเมินโครงการ - โรงเรียนสา อำเภอเวียงสา จังหวัดน่าน</p>
+                    </div>
+                </body>
+                </html>
+            `);
+            
+            printWindow.document.close();
+            
+            // Auto-focus and show print instructions
+            printWindow.focus();
+            
+            setTimeout(() => {
+                if (confirm('ต้องการเปิดหน้าต่างพิมพ์เลยหรือไม่?\n\n(หากต้องการบันทึกเป็น PDF ให้เลือก "Save as PDF" ในหน้าต่างพิมพ์)')) {
+                    printWindow.print();
+                }
+            }, 1000);
         }
             const formData = new FormData(document.getElementById('projectForm'));
             const data = collectFormData(formData);
@@ -392,44 +483,69 @@ function generateDetailedProjectPDF(data) {
             table.appendChild(row);
         }
 
-        // Form submission
+        // Form submission with better error handling
         document.getElementById('projectForm').addEventListener('submit', async function(e) {
             e.preventDefault();
             
             const formData = new FormData(this);
             const data = collectFormData(formData);
             
+            // Add signature if available
             if (signatureData) {
                 data.signature = signatureData;
             }
             
+            // Add timestamp
             data.timestamp = new Date().toISOString();
             
+            // Always save to local storage first
             saveToStorage(data);
             
             if (isGoogleConnected) {
                 try {
                     showStatus('กำลังส่งข้อมูลไป Google Sheets...', 'loading');
                     
-                    await submitToGoogleScript(data);
+                    const result = await submitToGoogleScript(data);
                     
-                    showStatus('ส่งข้อมูลไป Google Sheets เรียบร้อยแล้ว!', 'success');
-                    
-                    document.getElementById('projectForm').reset();
-                    clearSignature();
-                    
-                    setTimeout(() => {
-                        syncFromSheets();
-                        showDashboard();
-                    }, 2000);
+                    if (result.success) {
+                        showStatus('ส่งข้อมูลไป Google Sheets เรียบร้อยแล้ว!', 'success');
+                        
+                        // Clear form and signature
+                        this.reset();
+                        clearSignature();
+                        kpiCounter = 1; // Reset KPI counter
+                        
+                        // Sync data and show dashboard
+                        setTimeout(() => {
+                            syncFromSheets();
+                            showDashboard();
+                        }, 2000);
+                    } else {
+                        throw new Error(result.message || 'ส่งข้อมูลไม่สำเร็จ');
+                    }
                     
                 } catch (error) {
                     console.error('Submit failed:', error);
                     showStatus('ส่งข้อมูลไม่สำเร็จ แต่บันทึกในเครื่องแล้ว', 'error');
+                    
+                    // Still clear form even if submission failed
+                    setTimeout(() => {
+                        loadDashboardData();
+                        showDashboard();
+                    }, 3000);
                 }
             } else {
                 showStatus('บันทึกข้อมูลในเครื่องเรียบร้อยแล้ว!', 'success');
-                loadDashboardData();
+                
+                // Clear form
+                this.reset();
+                clearSignature();
+                kpiCounter = 1;
+                
+                setTimeout(() => {
+                    loadDashboardData();
+                    showDashboard();
+                }, 2000);
             }
         });
 
