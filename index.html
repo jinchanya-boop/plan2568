@@ -6,6 +6,18 @@
     <title>ระบบประเมินโครงการ - โรงเรียนสา</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+    <script>
+        // เพิ่มการตรวจสอบ jsPDF หลังจากโหลด
+        window.addEventListener('load', function() {
+            if (typeof window.jspdf === 'undefined') {
+                console.error('jsPDF not loaded properly');
+                // ลองโหลด jsPDF อีกครั้ง
+                const script = document.createElement('script');
+                script.src = 'https://unpkg.com/jspdf@latest/dist/jspdf.umd.min.js';
+                document.head.appendChild(script);
+            }
+        });
+    </script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
@@ -1032,14 +1044,14 @@ function doGet(e) {
                 projectsList.innerHTML = '<p class="text-gray-500 text-center py-8">ยังไม่มีข้อมูลโครงการ</p>';
             } else {
                 projectsList.innerHTML = projects.slice(-5).reverse().map(project => `
-                    <div class="bg-white rounded-lg p-4 border border-gray-200">
+                    <div class="bg-white rounded-lg p-4 border border-gray-200 hover:shadow-md transition-shadow">
                         <div class="flex justify-between items-start">
-                            <div>
-                                <h4 class="font-medium text-gray-900">${project.projectName || 'ไม่ระบุชื่อโครงการ'}</h4>
+                            <div class="flex-1">
+                                <h4 class="font-medium text-gray-900 mb-1">${project.projectName || 'ไม่ระบุชื่อโครงการ'}</h4>
                                 <p class="text-sm text-gray-600">ฝ่าย: ${project.department || 'ไม่ระบุ'}</p>
                                 <p class="text-sm text-gray-600">ผู้รับผิดชอบ: ${project.responsible || 'ไม่ระบุ'}</p>
                             </div>
-                            <div class="text-right">
+                            <div class="text-right flex flex-col items-end space-y-2">
                                 <span class="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium ${
                                     project.finalResult === 'บรรลุตามเป้าหมาย' ? 'bg-green-100 text-green-800' :
                                     project.finalResult === 'ไม่บรรลุตามเป้าหมาย' ? 'bg-red-100 text-red-800' :
@@ -1047,9 +1059,10 @@ function doGet(e) {
                                 }">
                                     ${project.finalResult || 'รอประเมิน'}
                                 </span>
-                                <p class="text-xs text-gray-500 mt-1">${project.timestamp || project.reportDate}</p>
-                                <button onclick="generateIndividualProjectPDF(${project.id})" class="mt-1 text-xs bg-blue-500 hover:bg-blue-600 text-white px-2 py-1 rounded">
-                                    PDF
+                                <p class="text-xs text-gray-500">${project.timestamp || project.reportDate}</p>
+                                <button onclick="generateIndividualProjectPDF(${project.id})" 
+                                        class="bg-blue-500 hover:bg-blue-600 text-white px-3 py-1 rounded-md text-xs font-medium transition-colors">
+                                    📄 ส่งออก PDF
                                 </button>
                             </div>
                         </div>
@@ -1253,8 +1266,18 @@ function doGet(e) {
             generateDetailedProjectPDF(project);
         }
 
-        // Enhanced PDF Generation Functions with Thai font support
+        // เพิ่มฟังก์ชันที่ขาดหายไป - generateProjectPDF (เป็น alias ของ generateIndividualProjectPDF)
+        function generateProjectPDF(projectId) {
+            generateIndividualProjectPDF(projectId);
+        }
+
+        // Enhanced PDF Generation Functions with better error handling
         function generateSummaryPDF() {
+            if (typeof window.jspdf === 'undefined') {
+                alert('กำลังโหลดไลบรารี PDF กรุณารอสักครู่แล้วลองใหม่');
+                return;
+            }
+            
             try {
                 const { jsPDF } = window.jspdf;
                 
@@ -1363,6 +1386,11 @@ function doGet(e) {
         }
 
         function generateAllProjectsPDF() {
+            if (typeof window.jspdf === 'undefined') {
+                alert('กำลังโหลดไลบรารี PDF กรุณารอสักครู่แล้วลองใหม่');
+                return;
+            }
+            
             try {
                 const tempDiv = document.createElement('div');
                 tempDiv.style.padding = '40px';
@@ -1460,6 +1488,11 @@ function doGet(e) {
         }
 
         function generateDepartmentPDF() {
+            if (typeof window.jspdf === 'undefined') {
+                alert('กำลังโหลดไลบรารี PDF กรุณารอสักครู่แล้วลองใหม่');
+                return;
+            }
+            
             try {
                 const tempDiv = document.createElement('div');
                 tempDiv.style.padding = '40px';
@@ -1553,6 +1586,11 @@ function doGet(e) {
         }
 
         function generateDetailedProjectPDF(data) {
+            if (typeof window.jspdf === 'undefined') {
+                alert('กำลังโหลดไลบรารี PDF กรุณารอสักครู่แล้วลองใหม่');
+                return;
+            }
+            
             try {
                 const tempDiv = document.createElement('div');
                 tempDiv.style.padding = '40px';
