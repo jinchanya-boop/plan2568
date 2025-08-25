@@ -1575,112 +1575,511 @@ function doGet(e) {
             }
         }
 
-        // PDF Generation Functions
+        // PDF Generation Functions - แก้ไขให้ใช้งานได้จริง
         function generateSummaryPDF() {
             try {
+                // ตรวจสอบว่า jsPDF โหลดแล้วหรือไม่
+                if (typeof window.jspdf === 'undefined') {
+                    alert('กำลังโหลด PDF library กรุณารอสักครู่...');
+                    return;
+                }
+
                 const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+
+                // เนื่องจาก jsPDF ไม่รองรับฟอนต์ไทยโดยตรง เราจะสร้าง PDF แบบง่ายๆ
+                pdf.setFontSize(20);
+                pdf.text('รายงานสรุปภาพรวมโครงการ', 20, 20);
                 
-                const tempDiv = document.createElement('div');
-                tempDiv.style.padding = '40px';
-                tempDiv.style.fontFamily = 'Sarabun, sans-serif';
-                tempDiv.style.backgroundColor = 'white';
-                tempDiv.style.fontSize = '14px';
-                tempDiv.style.lineHeight = '1.6';
-                tempDiv.style.color = 'black';
+                pdf.setFontSize(16);
+                pdf.text('โรงเรียนสา อำเภอเวียงสา จังหวัดน่าน', 20, 30);
                 
-                tempDiv.innerHTML = `
-                    <div style="text-align: center; margin-bottom: 30px;">
-                        <h1 style="font-size: 24px; font-weight: bold; margin-bottom: 10px;">รายงานสรุปภาพรวมโครงการ</h1>
-                        <h2 style="font-size: 18px; margin-bottom: 5px;">โรงเรียนสา อำเภอเวียงสา จังหวัดน่าน</h2>
-                        <p style="font-size: 16px;">ปีงบประมาณ 2568</p>
-                    </div>
-                    
-                    <div style="margin-bottom: 30px;">
-                        <h3 style="font-size: 20px; font-weight: bold; margin-bottom: 15px; color: #2563eb;">สถิติภาพรวม</h3>
-                        <div style="display: grid; grid-template-columns: 1fr 1fr; gap: 20px; margin-bottom: 20px;">
-                            <div style="background: #f3f4f6; padding: 15px; border-radius: 8px;">
-                                <p style="margin: 5px 0;"><strong>โครงการทั้งหมด:</strong> ${allProjectsData.length} โครงการ</p>
-                                <p style="margin: 5px 0;"><strong>บรรลุเป้าหมาย:</strong> ${allProjectsData.filter(p => p.finalResult === 'บรรลุตามเป้าหมาย').length} โครงการ</p>
-                            </div>
-                            <div style="background: #f3f4f6; padding: 15px; border-radius: 8px;">
-                                <p style="margin: 5px 0;"><strong>ไม่บรรลุเป้าหมาย:</strong> ${allProjectsData.filter(p => p.finalResult === 'ไม่บรรลุตามเป้าหมาย').length} โครงการ</p>
-                                <p style="margin: 5px 0;"><strong>รอดำเนินการ:</strong> ${allProjectsData.filter(p => !p.finalResult).length} โครงการ</p>
-                            </div>
-                        </div>
-                    </div>
-                    
-                    <div style="margin-top: 40px; text-align: center; font-size: 12px; color: #666;">
-                        <p>สร้างเมื่อ: ${new Date().toLocaleString('th-TH')}</p>
-                    </div>
-                `;
-                
-                document.body.appendChild(tempDiv);
-                
-                html2canvas(tempDiv, {
-                    scale: 2,
-                    useCORS: true,
-                    allowTaint: true,
-                    backgroundColor: '#ffffff'
-                }).then(canvas => {
-                    document.body.removeChild(tempDiv);
-                    
-                    const imgData = canvas.toDataURL('image/png');
-                    const pdf = new jsPDF('p', 'mm', 'a4');
-                    
-                    const imgWidth = 210;
-                    const pageHeight = 295;
-                    const imgHeight = (canvas.height * imgWidth) / canvas.width;
-                    let heightLeft = imgHeight;
-                    
-                    let position = 0;
-                    
-                    pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-                    heightLeft -= pageHeight;
-                    
-                    while (heightLeft >= 0) {
-                        position = heightLeft - imgHeight;
-                        pdf.addPage();
-                        pdf.addImage(imgData, 'PNG', 0, position, imgWidth, imgHeight);
-                        heightLeft -= pageHeight;
-                    }
-                    
-                    pdf.save(`รายงานสรุปภาพรวม_${new Date().toISOString().split('T')[0]}.pdf`);
+                pdf.setFontSize(14);
+                pdf.text('ปีงบประมาณ 2568', 20, 40);
+
+                pdf.setFontSize(16);
+                pdf.text('สถิติภาพรวม', 20, 60);
+
+                pdf.setFontSize(12);
+                const totalProjects = allProjectsData.length;
+                const successCount = allProjectsData.filter(p => p.finalResult === 'บรรลุตามเป้าหมาย').length;
+                const failedCount = allProjectsData.filter(p => p.finalResult === 'ไม่บรรลุตามเป้าหมาย').length;
+                const pendingCount = allProjectsData.filter(p => !p.finalResult).length;
+
+                pdf.text(`โครงการทั้งหมด: ${totalProjects} โครงการ`, 20, 80);
+                pdf.text(`บรรลุเป้าหมาย: ${successCount} โครงการ`, 20, 90);
+                pdf.text(`ไม่บรรลุเป้าหมาย: ${failedCount} โครงการ`, 20, 100);
+                pdf.text(`รอดำเนินการ: ${pendingCount} โครงการ`, 20, 110);
+
+                // สถิติแยกตามฝ่าย
+                pdf.setFontSize(16);
+                pdf.text('สถิติแยกตามฝ่าย', 20, 130);
+
+                const departments = ['วิชาการ', 'งบประมาณ', 'บุคคล', 'บริหารทั่วไป'];
+                let yPosition = 150;
+
+                departments.forEach(dept => {
+                    const deptProjects = allProjectsData.filter(p => p.department === dept);
+                    const deptSuccess = deptProjects.filter(p => p.finalResult === 'บรรลุตามเป้าหมาย').length;
+                    const successRate = deptProjects.length > 0 ? ((deptSuccess / deptProjects.length) * 100).toFixed(1) : 0;
+
+                    pdf.setFontSize(12);
+                    pdf.text(`ฝ่าย${dept}: ${deptProjects.length} โครงการ (อัตราความสำเร็จ ${successRate}%)`, 20, yPosition);
+                    yPosition += 10;
                 });
-                
+
+                // รายการโครงการล่าสุด
+                if (allProjectsData.length > 0) {
+                    pdf.setFontSize(16);
+                    pdf.text('โครงการล่าสุด', 20, yPosition + 20);
+                    yPosition += 40;
+
+                    const recentProjects = allProjectsData.slice(-5).reverse();
+                    recentProjects.forEach((project, index) => {
+                        if (yPosition > 270) { // ถ้าใกล้จะหมดหน้า
+                            pdf.addPage();
+                            yPosition = 20;
+                        }
+                        
+                        pdf.setFontSize(12);
+                        pdf.text(`${index + 1}. ${project.projectName || 'ไม่ระบุชื่อ'}`, 20, yPosition);
+                        yPosition += 10;
+                        pdf.text(`   ฝ่าย: ${project.department || 'ไม่ระบุ'}`, 20, yPosition);
+                        yPosition += 10;
+                        pdf.text(`   สถานะ: ${project.finalResult || 'รอประเมิน'}`, 20, yPosition);
+                        yPosition += 15;
+                    });
+                }
+
+                // ส่วนท้าย
+                pdf.setFontSize(10);
+                pdf.text(`สร้างเมื่อ: ${new Date().toLocaleString('th-TH')}`, 20, 280);
+
+                // ดาวน์โหลด PDF
+                pdf.save(`รายงานสรุปภาพรวม_${new Date().toISOString().split('T')[0]}.pdf`);
+
             } catch (error) {
                 console.error('PDF generation error:', error);
-                alert('เกิดข้อผิดพลาดในการสร้าง PDF');
+                alert('เกิดข้อผิดพลาดในการสร้าง PDF: ' + error.message);
             }
         }
 
         function generateAllProjectsPDF() {
-            // Implementation for all projects PDF
-            alert('ฟีเจอร์นี้อยู่ระหว่างพัฒนา');
+            try {
+                if (typeof window.jspdf === 'undefined') {
+                    alert('กำลังโหลด PDF library กรุณารอสักครู่...');
+                    return;
+                }
+
+                if (allProjectsData.length === 0) {
+                    alert('ไม่มีข้อมูลโครงการให้ส่งออก');
+                    return;
+                }
+
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+
+                pdf.setFontSize(20);
+                pdf.text('รายงานโครงการทั้งหมด', 20, 20);
+                
+                pdf.setFontSize(16);
+                pdf.text('โรงเรียนสา อำเภอเวียงสา จังหวัดน่าน', 20, 30);
+                
+                pdf.setFontSize(14);
+                pdf.text('ปีงบประมาณ 2568', 20, 40);
+
+                let yPosition = 60;
+
+                allProjectsData.forEach((project, index) => {
+                    if (yPosition > 250) { // ถ้าใกล้จะหมดหน้า
+                        pdf.addPage();
+                        yPosition = 20;
+                    }
+
+                    pdf.setFontSize(14);
+                    pdf.text(`${index + 1}. ${project.projectName || 'ไม่ระบุชื่อโครงการ'}`, 20, yPosition);
+                    yPosition += 10;
+
+                    pdf.setFontSize(11);
+                    pdf.text(`ฝ่าย: ${project.department || 'ไม่ระบุ'}`, 25, yPosition);
+                    yPosition += 7;
+                    pdf.text(`ผู้รับผิดชอบ: ${project.responsible || 'ไม่ระบุ'}`, 25, yPosition);
+                    yPosition += 7;
+                    pdf.text(`ระยะเวลา: ${project.timeline || 'ไม่ระบุ'}`, 25, yPosition);
+                    yPosition += 7;
+                    pdf.text(`สรุปผลการประเมิน: ${project.finalResult || 'รอประเมิน'}`, 25, yPosition);
+                    yPosition += 7;
+                    pdf.text(`วันที่รายงาน: ${project.reportDate || 'ไม่ระบุ'}`, 25, yPosition);
+                    yPosition += 7;
+                    pdf.text(`ผู้รายงาน: ${project.reporterName || 'ไม่ระบุ'}`, 25, yPosition);
+                    yPosition += 15;
+
+                    // เพิ่มข้อเสนอแนะหากมี
+                    if (project.suggestions && project.suggestions.trim()) {
+                        pdf.text(`ข้อเสนอแนะ: ${project.suggestions.substring(0, 100)}${project.suggestions.length > 100 ? '...' : ''}`, 25, yPosition);
+                        yPosition += 10;
+                    }
+
+                    yPosition += 5;
+                });
+
+                // ส่วนท้าย
+                pdf.setFontSize(10);
+                pdf.text(`สร้างเมื่อ: ${new Date().toLocaleString('th-TH')}`, 20, 280);
+
+                pdf.save(`รายงานโครงการทั้งหมด_${new Date().toISOString().split('T')[0]}.pdf`);
+
+            } catch (error) {
+                console.error('PDF generation error:', error);
+                alert('เกิดข้อผิดพลาดในการสร้าง PDF: ' + error.message);
+            }
         }
 
         function generateDepartmentPDF() {
-            // Implementation for department PDF
-            alert('ฟีเจอร์นี้อยู่ระหว่างพัฒนา');
+            try {
+                if (typeof window.jspdf === 'undefined') {
+                    alert('กำลังโหลด PDF library กรุณารอสักครู่...');
+                    return;
+                }
+
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+
+                pdf.setFontSize(20);
+                pdf.text('รายงานโครงการแยกตามฝ่าย', 20, 20);
+                
+                pdf.setFontSize(16);
+                pdf.text('โรงเรียนสา อำเภอเวียงสา จังหวัดน่าน', 20, 30);
+                
+                pdf.setFontSize(14);
+                pdf.text('ปีงบประมาณ 2568', 20, 40);
+
+                const departments = ['วิชาการ', 'งบประมาณ', 'บุคคล', 'บริหารทั่วไป'];
+                let yPosition = 60;
+
+                departments.forEach(dept => {
+                    const deptProjects = allProjectsData.filter(p => p.department === dept);
+                    const successCount = deptProjects.filter(p => p.finalResult === 'บรรลุตามเป้าหมาย').length;
+                    const successRate = deptProjects.length > 0 ? ((successCount / deptProjects.length) * 100).toFixed(1) : 0;
+
+                    if (yPosition > 240) {
+                        pdf.addPage();
+                        yPosition = 20;
+                    }
+
+                    pdf.setFontSize(16);
+                    pdf.text(`ฝ่าย${dept}`, 20, yPosition);
+                    yPosition += 10;
+
+                    pdf.setFontSize(12);
+                    pdf.text(`จำนวนโครงการ: ${deptProjects.length} โครงการ | อัตราความสำเร็จ: ${successRate}%`, 25, yPosition);
+                    yPosition += 15;
+
+                    if (deptProjects.length === 0) {
+                        pdf.text('ไม่มีโครงการในฝ่ายนี้', 25, yPosition);
+                        yPosition += 20;
+                    } else {
+                        deptProjects.forEach((project, index) => {
+                            if (yPosition > 260) {
+                                pdf.addPage();
+                                yPosition = 20;
+                            }
+
+                            pdf.setFontSize(11);
+                            pdf.text(`${index + 1}. ${project.projectName}`, 30, yPosition);
+                            yPosition += 7;
+                            pdf.text(`   ผู้รับผิดชอบ: ${project.responsible || 'ไม่ระบุ'}`, 35, yPosition);
+                            yPosition += 7;
+                            pdf.text(`   สถานะ: ${project.finalResult || 'รอประเมิน'}`, 35, yPosition);
+                            yPosition += 10;
+                        });
+                    }
+                    yPosition += 10;
+                });
+
+                pdf.setFontSize(10);
+                pdf.text(`สร้างเมื่อ: ${new Date().toLocaleString('th-TH')}`, 20, 280);
+
+                pdf.save(`รายงานตามฝ่าย_${new Date().toISOString().split('T')[0]}.pdf`);
+
+            } catch (error) {
+                console.error('PDF generation error:', error);
+                alert('เกิดข้อผิดพลาดในการสร้าง PDF: ' + error.message);
+            }
         }
 
         function generateSingleProjectPDF() {
-            const formData = new FormData(document.getElementById('projectForm'));
-            const data = collectFormData(formData);
-            
-            if (!data.projectName) {
-                alert('กรุณากรอกชื่อโครงการก่อนส่งออก PDF');
-                return;
+            try {
+                if (typeof window.jspdf === 'undefined') {
+                    alert('กำลังโหลด PDF library กรุณารอสักครู่...');
+                    return;
+                }
+
+                const formData = new FormData(document.getElementById('projectForm'));
+                const data = collectFormData(formData);
+                
+                if (!data.projectName || !data.projectName.trim()) {
+                    alert('กรุณากรอกชื่อโครงการก่อนส่งออก PDF');
+                    return;
+                }
+
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+
+                pdf.setFontSize(18);
+                pdf.text('แบบสรุปประเมินโครงการ', 20, 20);
+                
+                pdf.setFontSize(14);
+                pdf.text('ประจำปีงบประมาณ 2568', 20, 30);
+                pdf.text('โรงเรียนสา อำเภอเวียงสา จังหวัดน่าน', 20, 40);
+
+                let yPosition = 60;
+
+                // ข้อมูลโครงการ
+                pdf.setFontSize(14);
+                pdf.text('1. ข้อมูลโครงการ', 20, yPosition);
+                yPosition += 10;
+
+                pdf.setFontSize(11);
+                pdf.text(`ชื่อโครงการ: ${data.projectName}`, 25, yPosition);
+                yPosition += 7;
+                pdf.text(`ฝ่าย: ${data.department || 'ไม่ระบุ'}`, 25, yPosition);
+                yPosition += 7;
+                pdf.text(`กลยุทธ์: ${data.strategy || 'ไม่ระบุ'}`, 25, yPosition);
+                yPosition += 7;
+                pdf.text(`มาตรฐาน: ${data.standard || 'ไม่ระบุ'}`, 25, yPosition);
+                yPosition += 7;
+                pdf.text(`ระยะเวลา: ${data.timeline || 'ไม่ระบุ'}`, 25, yPosition);
+                yPosition += 7;
+                pdf.text(`ผู้รับผิดชอบ: ${data.responsible || 'ไม่ระบุ'}`, 25, yPosition);
+                yPosition += 15;
+
+                // ผลการดำเนินงาน
+                pdf.setFontSize(14);
+                pdf.text('5. ผลการดำเนินงาน', 20, yPosition);
+                yPosition += 10;
+
+                pdf.setFontSize(12);
+                pdf.text('5.1 ด้านปัจจัย', 25, yPosition);
+                yPosition += 8;
+
+                pdf.setFontSize(10);
+                if (data.timelineStatus) {
+                    pdf.text(`ระยะเวลาดำเนินการ: ${data.timelineStatus}`, 30, yPosition);
+                    yPosition += 6;
+                }
+                if (data.locationSuitability) {
+                    pdf.text(`ความเหมาะสมสถานที่: ${data.locationSuitability}`, 30, yPosition);
+                    yPosition += 6;
+                }
+                if (data.equipmentQuantity) {
+                    pdf.text(`จำนวนอุปกรณ์: ${data.equipmentQuantity}`, 30, yPosition);
+                    yPosition += 6;
+                }
+                if (data.equipmentQuality) {
+                    pdf.text(`คุณภาพอุปกรณ์: ${data.equipmentQuality}`, 30, yPosition);
+                    yPosition += 6;
+                }
+                if (data.personnelQuantity) {
+                    pdf.text(`จำนวนบุคลากร: ${data.personnelQuantity}`, 30, yPosition);
+                    yPosition += 6;
+                }
+                if (data.cooperation) {
+                    pdf.text(`ความร่วมมือ: ${data.cooperation}`, 30, yPosition);
+                    yPosition += 6;
+                }
+
+                // งบประมาณ
+                if (data.budgetAllocated || data.budgetUsed || data.budgetRemaining) {
+                    yPosition += 5;
+                    pdf.text(`งบประมาณ - ได้รับ: ${data.budgetAllocated || 0} บาท`, 30, yPosition);
+                    yPosition += 6;
+                    pdf.text(`ใช้ไป: ${data.budgetUsed || 0} บาท, คงเหลือ: ${data.budgetRemaining || 0} บาท`, 30, yPosition);
+                    yPosition += 10;
+                }
+
+                // ผลการดำเนินงาน
+                pdf.setFontSize(12);
+                pdf.text('5.2 ด้านผลการดำเนินงาน', 25, yPosition);
+                yPosition += 8;
+
+                pdf.setFontSize(10);
+                if (data.achievement) {
+                    pdf.text(`ผลสัมฤทธิ์: ${data.achievement}`, 30, yPosition);
+                    yPosition += 6;
+                }
+                if (data.quantityResult) {
+                    pdf.text(`ผลด้านปริมาณ: ${data.quantityResult}`, 30, yPosition);
+                    yPosition += 6;
+                }
+                if (data.qualityResult) {
+                    pdf.text(`ผลด้านคุณภาพ: ${data.qualityResult}`, 30, yPosition);
+                    yPosition += 6;
+                }
+
+                // KPI
+                if (data.kpiData && data.kpiData.length > 0) {
+                    yPosition += 5;
+                    pdf.text('ตัวชี้วัดความสำเร็จ:', 30, yPosition);
+                    yPosition += 6;
+                    data.kpiData.forEach(kpi => {
+                        if (yPosition > 270) {
+                            pdf.addPage();
+                            yPosition = 20;
+                        }
+                        pdf.text(`- ${kpi.kpi}: เป้าหมาย ${kpi.target}%, ผลลัพธ์ ${kpi.result}% (${kpi.summary})`, 35, yPosition);
+                        yPosition += 6;
+                    });
+                }
+
+                // ข้อเสนอแนะ
+                if (data.suggestions && data.suggestions.trim()) {
+                    if (yPosition > 250) {
+                        pdf.addPage();
+                        yPosition = 20;
+                    }
+                    yPosition += 10;
+                    pdf.setFontSize(12);
+                    pdf.text('5.4 ข้อเสนอแนะ', 25, yPosition);
+                    yPosition += 8;
+                    pdf.setFontSize(10);
+                    
+                    // แบ่งข้อความยาวออกเป็นหลายบรรทัด
+                    const lines = pdf.splitTextToSize(data.suggestions, 160);
+                    lines.forEach(line => {
+                        if (yPosition > 270) {
+                            pdf.addPage();
+                            yPosition = 20;
+                        }
+                        pdf.text(line, 30, yPosition);
+                        yPosition += 6;
+                    });
+                }
+
+                // สรุปผลการประเมิน
+                if (data.finalResult) {
+                    yPosition += 10;
+                    pdf.setFontSize(14);
+                    pdf.text('5.5 สรุปผลการประเมิน', 25, yPosition);
+                    yPosition += 10;
+                    pdf.setFontSize(12);
+                    pdf.text(data.finalResult, 30, yPosition);
+                    yPosition += 10;
+                }
+
+                // ลายเซ็นผู้รายงาน
+                yPosition += 15;
+                if (yPosition > 250) {
+                    pdf.addPage();
+                    yPosition = 20;
+                }
+                pdf.setFontSize(12);
+                pdf.text('ลายเซ็นผู้รายงาน', 25, yPosition);
+                yPosition += 10;
+                pdf.setFontSize(10);
+                pdf.text(`ชื่อผู้รายงาน: ${data.reporterName || 'ไม่ระบุ'}`, 30, yPosition);
+                yPosition += 7;
+                pdf.text(`วันที่: ${data.reportDate || 'ไม่ระบุ'}`, 30, yPosition);
+
+                // ส่วนท้าย
+                pdf.setFontSize(8);
+                pdf.text(`สร้างเมื่อ: ${new Date().toLocaleString('th-TH')}`, 20, 285);
+
+                const fileName = `แบบประเมินโครงการ_${data.projectName.replace(/[^a-zA-Z0-9ก-๙]/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+                pdf.save(fileName);
+
+            } catch (error) {
+                console.error('PDF generation error:', error);
+                alert('เกิดข้อผิดพลาดในการสร้าง PDF: ' + error.message);
             }
-            
-            // Implementation for single project PDF
-            alert('ฟีเจอร์นี้อยู่ระหว่างพัฒนา');
         }
 
         function generateProjectPDF(projectId) {
-            const project = allProjectsData.find(p => p.id === projectId);
-            if (project) {
-                // Implementation for specific project PDF
-                alert(`ส่งออก PDF สำหรับโครงการ: ${project.projectName}`);
+            try {
+                if (typeof window.jspdf === 'undefined') {
+                    alert('กำลังโหลด PDF library กรุณารอสักครู่...');
+                    return;
+                }
+
+                const project = allProjectsData.find(p => p.id === projectId);
+                if (!project) {
+                    alert('ไม่พบข้อมูลโครงการ');
+                    return;
+                }
+
+                const { jsPDF } = window.jspdf;
+                const pdf = new jsPDF('p', 'mm', 'a4');
+
+                pdf.setFontSize(18);
+                pdf.text('แบบสรุปประเมินโครงการ', 20, 20);
+                
+                pdf.setFontSize(14);
+                pdf.text('ประจำปีงบประมาณ 2568', 20, 30);
+                pdf.text('โรงเรียนสา อำเภอเวียงสา จังหวัดน่าน', 20, 40);
+
+                let yPosition = 60;
+
+                // ข้อมูลโครงการ
+                pdf.setFontSize(14);
+                pdf.text('ข้อมูลโครงการ', 20, yPosition);
+                yPosition += 10;
+
+                pdf.setFontSize(11);
+                pdf.text(`ชื่อโครงการ: ${project.projectName}`, 25, yPosition);
+                yPosition += 7;
+                pdf.text(`ฝ่าย: ${project.department || 'ไม่ระบุ'}`, 25, yPosition);
+                yPosition += 7;
+                pdf.text(`ระยะเวลา: ${project.timeline || 'ไม่ระบุ'}`, 25, yPosition);
+                yPosition += 7;
+                pdf.text(`ผู้รับผิดชอบ: ${project.responsible || 'ไม่ระบุ'}`, 25, yPosition);
+                yPosition += 15;
+
+                // ผลการดำเนินงาน
+                pdf.setFontSize(14);
+                pdf.text('ผลการดำเนินงาน', 20, yPosition);
+                yPosition += 10;
+
+                pdf.setFontSize(11);
+                if (project.achievement) {
+                    pdf.text(`ผลสัมฤทธิ์: ${project.achievement}`, 25, yPosition);
+                    yPosition += 7;
+                }
+                if (project.quantityResult) {
+                    pdf.text(`ผลด้านปริมาณ: ${project.quantityResult}`, 25, yPosition);
+                    yPosition += 7;
+                }
+                if (project.qualityResult) {
+                    pdf.text(`ผลด้านคุณภาพ: ${project.qualityResult}`, 25, yPosition);
+                    yPosition += 7;
+                }
+
+                // สรุปผลการประเมิน
+                yPosition += 10;
+                pdf.setFontSize(14);
+                pdf.text('สรุปผลการประเมิน', 25, yPosition);
+                yPosition += 10;
+                pdf.setFontSize(12);
+                pdf.text(project.finalResult || 'รอประเมิน', 30, yPosition);
+
+                // ข้อมูลผู้รายงาน
+                yPosition += 20;
+                pdf.setFontSize(12);
+                pdf.text('ข้อมูลผู้รายงาน', 25, yPosition);
+                yPosition += 10;
+                pdf.setFontSize(10);
+                pdf.text(`ชื่อผู้รายงาน: ${project.reporterName || 'ไม่ระบุ'}`, 30, yPosition);
+                yPosition += 7;
+                pdf.text(`วันที่: ${project.reportDate || 'ไม่ระบุ'}`, 30, yPosition);
+
+                pdf.setFontSize(8);
+                pdf.text(`สร้างเมื่อ: ${new Date().toLocaleString('th-TH')}`, 20, 285);
+
+                const fileName = `โครงการ_${project.projectName.replace(/[^a-zA-Z0-9ก-๙]/g, '_')}.pdf`;
+                pdf.save(fileName);
+
+            } catch (error) {
+                console.error('PDF generation error:', error);
+                alert('เกิดข้อผิดพลาดในการสร้าง PDF: ' + error.message);
             }
         }
 
