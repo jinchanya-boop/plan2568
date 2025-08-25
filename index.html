@@ -2583,7 +2583,31 @@ function doGet(e) {
         }
 
         // Initialize dashboard on load
-        showDashboard();
+        document.addEventListener('DOMContentLoaded', function() {
+            showDashboard();
+        });
+
+        // เพิ่มฟังก์ชันที่หายไป
+        window.toggleConfig = toggleConfig;
+        window.showDashboard = showDashboard;
+        window.showForm = showForm;
+        window.syncFromSheets = syncFromSheets;
+        window.showPDFExports = showPDFExports;
+        window.closePDFModal = closePDFModal;
+        window.generateSummaryPDF = generateSummaryPDF;
+        window.generateAllProjectsPDF = generateAllProjectsPDF;
+        window.generateDepartmentPDF = generateDepartmentPDF;
+        window.generateSingleProjectPDF = generateSingleProjectPDF;
+        window.generateProjectPDF = generateProjectPDF;
+        window.testScriptConnection = testScriptConnection;
+        window.showScriptInstructions = showScriptInstructions;
+        window.closeInstructions = closeInstructions;
+        window.copyScriptCode = copyScriptCode;
+        window.clearSignature = clearSignature;
+        window.saveSignature = saveSignature;
+        window.addKPIRow = addKPIRow;
+        window.previewForm = previewForm;
+        window.closePreview = closePreview;
     </script>
 </body>
 </html>
