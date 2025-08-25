@@ -875,14 +875,26 @@ function doGet(e) {
         let allProjectsData = [];
 
         // Default Google Apps Script URL - แก้ไขให้ตรงกับของคุณ
-        const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycbxF9YycUYuAW-FMmOqkyw6xvPvX2rMDLBjD1aB5EJw0LXHxGEkuOsDg5whmoV2LHT9-5Q/exec';
+        const DEFAULT_SCRIPT_URL = 'https://script.google.com/macros/s/AKfycby87zjz8bvcQprTksDikgsEOAGpr1k8H41mgKBVgF-0VkOaR2fKtsZBdnsY9CwU50cCwA/exec';
 
-        // ฟังก์ชันสำหรับการตั้งค่า
-        function toggleConfig() {
-            const panel = document.getElementById('configPanel');
-            panel.classList.toggle('hidden');
+        // Initialize
+        document.addEventListener('DOMContentLoaded', function() {
+            initializeSignaturePad();
+            loadStoredConfig();
+            autoConnectToGoogleScript();
+            document.querySelector('input[name="reportDate"]').value = new Date().toISOString().split('T')[0];
+        });
+
+        // Auto-connect function
+        function autoConnectToGoogleScript() {
+            const scriptUrl = document.getElementById('scriptUrl').value || DEFAULT_SCRIPT_URL;
+            if (scriptUrl) {
+                document.getElementById('scriptUrl').value = scriptUrl;
+                testScriptConnection();
+            }
         }
 
+        // Configuration functions
         function loadStoredConfig() {
             const storedUrl = localStorage.getItem('scriptUrl') || DEFAULT_SCRIPT_URL;
             if (storedUrl) {
@@ -927,96 +939,21 @@ function doGet(e) {
                 }
             } catch (error) {
                 console.log('Connection test error:', error);
+                // ถึงแม้จะ error ก็ยังลองใช้งานได้ เพราะ CORS อาจบล็อก
                 showStatus('อาจเชื่อมต่อได้ (CORS อาจบล็อกการตรวจสอบ)', 'warning');
                 isGoogleConnected = true;
                 document.getElementById('syncStatus').classList.remove('hidden');
             }
         }
 
-        function showScriptInstructions() {
-            document.getElementById('instructionsModal').classList.remove('hidden');
-        }
-
-        function closeInstructions() {
-            document.getElementById('instructionsModal').classList.add('hidden');
-        }
-
-        function copyScriptCode() {
-            const scriptCode = document.getElementById('scriptCodeBlock').textContent;
-            
-            if (navigator.clipboard && navigator.clipboard.writeText) {
-                navigator.clipboard.writeText(scriptCode).then(() => {
-                    alert('คัดลอกโค้ดเรียบร้อยแล้ว!');
-                }).catch(() => {
-                    fallbackCopy(scriptCode);
-                });
-            } else {
-                fallbackCopy(scriptCode);
-            }
-            
-            function fallbackCopy(text) {
-                const textArea = document.createElement('textarea');
-                textArea.value = text;
-                textArea.style.position = 'fixed';
-                textArea.style.left = '-999999px';
-                textArea.style.top = '-999999px';
-                document.body.appendChild(textArea);
-                textArea.focus();
-                textArea.select();
-                try {
-                    document.execCommand('copy');
-                    alert('คัดลอกโค้ดเรียบร้อยแล้ว!');
-                } catch (err) {
-                    alert('ไม่สามารถคัดลอกอัตโนมัติได้');
-                }
-                document.body.removeChild(textArea);
-            }
-        }
-
-        function showStatus(message, type) {
-            const statusDiv = document.getElementById('connectionStatus');
-            const messageDiv = document.getElementById('statusMessage');
-            
-            statusDiv.classList.remove('hidden');
-            messageDiv.textContent = message;
-            
-            statusDiv.classList.remove('bg-green-100', 'bg-red-100', 'bg-yellow-100', 'bg-blue-100');
-            
-            switch(type) {
-                case 'success': statusDiv.classList.add('bg-green-100'); break;
-                case 'error': statusDiv.classList.add('bg-red-100'); break;
-                case 'loading': statusDiv.classList.add('bg-blue-100'); break;
-                case 'warning': statusDiv.classList.add('bg-yellow-100'); break;
-                default: statusDiv.classList.add('bg-yellow-100');
-            }
-            
-            if (type !== 'error') {
-                setTimeout(() => statusDiv.classList.add('hidden'), 5000);
-            }
-        }
-
-        // Navigation functions
-        function showDashboard() {
-            document.getElementById('dashboard').classList.remove('hidden');
-            document.getElementById('formSection').classList.add('hidden');
-            if (isGoogleConnected) {
-                syncFromSheets();
-            } else {
-                loadDashboardData();
-            }
-        }
-
-        function showForm() {
-            document.getElementById('dashboard').classList.add('hidden');
-            document.getElementById('formSection').classList.remove('hidden');
-        }
-
-        // Form data collection
+        // Form data collection - แก้ไขให้ส่งข้อมูลแบบ form submission
         function collectFormData(formData) {
             const data = {};
             
+            // Handle regular form fields
             for (let [key, value] of formData.entries()) {
                 if (data[key]) {
+                    // Handle multiple values (like checkboxes)
                     if (Array.isArray(data[key])) {
                         data[key].push(value);
                     } else {
@@ -1027,10 +964,12 @@ function doGet(e) {
                 }
             }
             
+            // Handle checkbox groups properly
             const checkboxes = document.querySelectorAll('input[type="checkbox"][name="problems"]:checked');
             const selectedProblems = Array.from(checkboxes).map(cb => cb.value);
             data.problems = selectedProblems;
             
+            // Collect KPI data
             const kpiData = [];
             for (let i = 1; i <= kpiCounter; i++) {
                 const kpi = data[`kpi${i}`];
@@ -1052,17 +991,22 @@ function doGet(e) {
             return data;
         }
 
+        // แก้ไข submitToGoogleScript ให้ส่งข้อมูลแบบ URL encoded
         async function submitToGoogleScript(data) {
             const scriptUrl = document.getElementById('scriptUrl').value || DEFAULT_SCRIPT_URL;
             
             try {
+                // สร้าง URLSearchParams แทน FormData
                 const params = new URLSearchParams();
                 
+                // เพิ่มข้อมูลทั้งหมดใน URLSearchParams
                 for (const key in data) {
                     if (data.hasOwnProperty(key)) {
                         if (Array.isArray(data[key])) {
+                            // Handle arrays - แปลงเป็น string ด้วย join
                             params.append(key, data[key].join('|'));
                         } else if (typeof data[key] === 'object' && data[key] !== null) {
+                            // Handle objects - แปลงเป็น JSON string
                             params.append(key, JSON.stringify(data[key]));
                         } else {
                             params.append(key, String(data[key] || ''));
@@ -1070,6 +1014,7 @@ function doGet(e) {
                     }
                 }
                 
+                // ส่งแบบ POST with URL encoded data
                 const response = await fetch(scriptUrl, {
                     method: 'POST',
                     headers: {
@@ -1078,14 +1023,17 @@ function doGet(e) {
                     body: params.toString()
                 });
                 
+                // ตรวจสอบ response
                 if (response.ok) {
                     const result = await response.text();
                     console.log('Response:', result);
                     
+                    // พยายาม parse JSON response
                     try {
                         const jsonResult = JSON.parse(result);
                         return jsonResult;
                     } catch (e) {
+                        // ถ้า parse ไม่ได้ แต่ response OK แสดงว่าส่งสำเร็จ
                         if (result.includes('success') || result.length === 0) {
                             return { success: true, message: 'บันทึกข้อมูลสำเร็จ' };
                         } else {
@@ -1102,6 +1050,7 @@ function doGet(e) {
             }
         }
 
+        // Sync data from Google Sheets
         async function syncFromSheets() {
             const scriptUrl = document.getElementById('scriptUrl').value || DEFAULT_SCRIPT_URL;
             
@@ -1154,6 +1103,7 @@ function doGet(e) {
                 }
             } catch (error) {
                 console.error('Sync error:', error);
+                // ใช้ข้อมูลใน localStorage แทน
                 loadDashboardData();
             }
         }
@@ -1229,8 +1179,7 @@ function doGet(e) {
         }
 
         function createDepartmentChart(data) {
-            const ctx = document.getElementById('departmentChart')?.getContext('2d');
-            if (!ctx) return;
+            const ctx = document.getElementById('departmentChart').getContext('2d');
             
             if (departmentChart) {
                 departmentChart.destroy();
@@ -1262,6 +1211,19 @@ function doGet(e) {
                                 usePointStyle: true,
                                 font: { family: 'Sarabun', size: 12 }
                             }
+                        },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const label = context.label || '';
+                                    const value = context.parsed;
+                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
+                                    const percentage = ((value / total) * 100).toFixed(1);
+                                    return `${label}: ${value} โครงการ (${percentage}%)`;
+                                }
+                            },
+                            titleFont: { family: 'Sarabun' },
+                            bodyFont: { family: 'Sarabun' }
                         }
                     }
                 }
@@ -1269,8 +1231,7 @@ function doGet(e) {
         }
 
         function createSuccessRateChart(data) {
-            const ctx = document.getElementById('successRateChart')?.getContext('2d');
-            if (!ctx) return;
+            const ctx = document.getElementById('successRateChart').getContext('2d');
             
             if (successRateChart) {
                 successRateChart.destroy();
@@ -1281,6 +1242,7 @@ function doGet(e) {
                 const deptData = data[dept];
                 return deptData.total > 0 ? ((deptData.success / deptData.total) * 100).toFixed(1) : 0;
             });
+            const totalProjects = labels.map(dept => data[dept].total);
             
             successRateChart = new Chart(ctx, {
                 type: 'bar',
@@ -1289,110 +1251,204 @@ function doGet(e) {
                     datasets: [{
                         label: 'อัตราความสำเร็จ (%)',
                         data: successRates,
-                        backgroundColor: ['rgba(59, 130, 246, 0.8)', 'rgba(16, 185, 129, 0.8)', 'rgba(245, 158, 11, 0.8)', 'rgba(239, 68, 68, 0.8)']
+                        backgroundColor: ['rgba(59, 130, 246, 0.8)', 'rgba(16, 185, 129, 0.8)', 'rgba(245, 158, 11, 0.8)', 'rgba(239, 68, 68, 0.8)'],
+                        borderColor: ['rgba(59, 130, 246, 1)', 'rgba(16, 185, 129, 1)', 'rgba(245, 158, 11, 1)', 'rgba(239, 68, 68, 1)'],
+                        borderWidth: 2,
+                        borderRadius: 4
                     }]
                 },
                 options: {
                     responsive: true,
                     maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false },
+                        tooltip: {
+                            callbacks: {
+                                label: function(context) {
+                                    const deptIndex = context.dataIndex;
+                                    const dept = labels[deptIndex];
+                                    const rate = context.parsed.y;
+                                    const total = totalProjects[deptIndex];
+                                    const success = data[dept].success;
+                                    return [`อัตราความสำเร็จ: ${rate}%`, `โครงการสำเร็จ: ${success}/${total}`];
+                                }
+                            },
+                            titleFont: { family: 'Sarabun' },
+                            bodyFont: { family: 'Sarabun' }
+                        }
+                    },
                     scales: {
                         y: {
                             beginAtZero: true,
                             max: 100,
                             ticks: {
-                                callback: function(value) { return value + '%'; }
+                                callback: function(value) { return value + '%'; },
+                                font: { family: 'Sarabun' }
                             }
+                        },
+                        x: {
+                            ticks: { font: { family: 'Sarabun' } }
                         }
                     }
                 }
             });
         }
 
-        // PDF Functions
-        function showPDFExports() {
-            updatePDFProjectsList();
-            document.getElementById('pdfModal').classList.remove('hidden');
+        function showStatus(message, type) {
+            const statusDiv = document.getElementById('connectionStatus');
+            const messageDiv = document.getElementById('statusMessage');
+            
+            statusDiv.classList.remove('hidden');
+            messageDiv.textContent = message;
+            
+            statusDiv.classList.remove('bg-green-100', 'bg-red-100', 'bg-yellow-100', 'bg-blue-100');
+            
+            switch(type) {
+                case 'success': statusDiv.classList.add('bg-green-100'); break;
+                case 'error': statusDiv.classList.add('bg-red-100'); break;
+                case 'loading': statusDiv.classList.add('bg-blue-100'); break;
+                case 'warning': statusDiv.classList.add('bg-yellow-100'); break;
+                default: statusDiv.classList.add('bg-yellow-100');
+            }
+            
+            if (type !== 'error') {
+                setTimeout(() => statusDiv.classList.add('hidden'), 5000);
+            }
         }
 
-        function closePDFModal() {
-            document.getElementById('pdfModal').classList.add('hidden');
+        // Form submission - แก้ไขให้แสดง loading และ error handling ที่ดีขึ้น
+        document.getElementById('projectForm').addEventListener('submit', async function(e) {
+            e.preventDefault();
+            
+            const submitBtn = document.getElementById('submitBtn');
+            const submitText = document.getElementById('submitText');
+            const submitSpinner = document.getElementById('submitSpinner');
+            
+            // แสดง loading state
+            submitBtn.disabled = true;
+            submitText.textContent = 'กำลังบันทึก...';
+            submitSpinner.classList.remove('hidden');
+            
+            try {
+                const formData = new FormData(this);
+                const data = collectFormData(formData);
+                
+                if (signatureData) {
+                    data.signature = signatureData;
+                }
+                
+                data.timestamp = new Date().toISOString();
+                
+                // บันทึกลง localStorage ก่อน
+                saveToStorage(data);
+                
+                if (isGoogleConnected) {
+                    try {
+                        showStatus('กำลังส่งข้อมูลไป Google Sheets...', 'loading');
+                        
+                        const result = await submitToGoogleScript(data);
+                        
+                        if (result.success !== false) {
+                            showStatus('ส่งข้อมูลไป Google Sheets เรียบร้อยแล้ว!', 'success');
+                            
+                            // รีเซ็ตฟอร์ม
+                            document.getElementById('projectForm').reset();
+                            clearSignature();
+                            
+                            // รีเฟรชแดชบอร์ด
+                            setTimeout(() => {
+                                syncFromSheets();
+                            }, 1000);
+                            
+                        } else {
+                            throw new Error(result.message || 'ไม่สามารถบันทึกข้อมูลได้');
+                        }
+                        
+                    } catch (error) {
+                        console.error('Submit failed:', error);
+                        showStatus('ส่งข้อมูลไม่สำเร็จ แต่บันทึกในเครื่องแล้ว: ' + error.message, 'error');
+                    }
+                } else {
+                    showStatus('บันทึกข้อมูลในเครื่องเรียบร้อยแล้ว!', 'success');
+                    loadDashboardData();
+                }
+                
+            } catch (error) {
+                console.error('Form submission error:', error);
+                showStatus('เกิดข้อผิดพลาด: ' + error.message, 'error');
+            } finally {
+                // ซ่อน loading state
+                submitBtn.disabled = false;
+                submitText.textContent = 'บันทึกไป Google Sheets';
+                submitSpinner.classList.add('hidden');
+            }
+        });
+
+        function showScriptInstructions() {
+            document.getElementById('instructionsModal').classList.remove('hidden');
         }
 
-        function updatePDFProjectsList() {
-            const pdfProjectsList = document.getElementById('pdfProjectsList');
-            if (allProjectsData.length === 0) {
-                pdfProjectsList.innerHTML = '<p class="text-gray-500 text-center py-4">ยังไม่มีข้อมูลโครงการ</p>';
+        function closeInstructions() {
+            document.getElementById('instructionsModal').classList.add('hidden');
+        }
+
+        // Copy script code function
+        function copyScriptCode() {
+            const scriptCode = document.getElementById('scriptCodeBlock').textContent;
+            
+            if (navigator.clipboard && navigator.clipboard.writeText) {
+                navigator.clipboard.writeText(scriptCode).then(() => {
+                    alert('คัดลอกโค้ดเรียบร้อยแล้ว!\n\nขั้นตอนต่อไป:\n1. ไปที่ script.google.com\n2. สร้างโปรเจกต์ใหม่\n3. วางโค้ดที่คัดลอกมา\n4. แก้ไข SPREADSHEET_ID\n5. Deploy เป็น Web app');
+                }).catch(() => {
+                    fallbackCopy(scriptCode);
+                });
             } else {
-                pdfProjectsList.innerHTML = allProjectsData.map(project => `
-                    <div class="pdf-item bg-gray-50 border border-gray-200 rounded-lg p-3 hover:bg-gray-100 cursor-pointer" 
-                         onclick="generateProjectPDF(${project.id})">
-                        <div class="flex justify-between items-center">
-                            <div>
-                                <h5 class="font-medium text-gray-900">${project.projectName || 'ไม่ระบุชื่อโครงการ'}</h5>
-                                <p class="text-xs text-gray-600">ฝ่าย: ${project.department} | ผู้รายงาน: ${project.reporterName}</p>
-                            </div>
-                            <div class="text-right">
-                                <span class="text-xs px-2 py-1 rounded ${
-                                    project.finalResult === 'บรรลุตามเป้าหมาย' ? 'bg-green-100 text-green-700' :
-                                    project.finalResult === 'ไม่บรรลุตามเป้าหมาย' ? 'bg-red-100 text-red-700' :
-                                    'bg-yellow-100 text-yellow-700'
-                                }">
-                                    ${project.finalResult || 'รอประเมิน'}
-                                </span>
-                            </div>
-                        </div>
-                    </div>
-                `).join('');
-            }
-        }
-
-        // PDF Generation Functions
-        function generateSummaryPDF() {
-            createPDFFromHTML('summary');
-        }
-
-        function generateAllProjectsPDF() {
-            if (allProjectsData.length === 0) {
-                alert('ไม่มีข้อมูลโครงการให้ส่งออก');
-                return;
-            }
-            createPDFFromHTML('allprojects');
-        }
-
-        function generateDepartmentPDF() {
-            createPDFFromHTML('department');
-        }
-
-        function generateSingleProjectPDF() {
-            const formData = new FormData(document.getElementById('projectForm'));
-            const data = collectFormData(formData);
-            
-            if (!data.projectName || !data.projectName.trim()) {
-                alert('กรุณากรอกชื่อโครงการก่อนส่งออก PDF');
-                return;
+                fallbackCopy(scriptCode);
             }
             
-            if (signatureData) {
-                data.signature = signatureData;
+            function fallbackCopy(text) {
+                const textArea = document.createElement('textarea');
+                textArea.value = text;
+                textArea.style.position = 'fixed';
+                textArea.style.left = '-999999px';
+                textArea.style.top = '-999999px';
+                document.body.appendChild(textArea);
+                textArea.focus();
+                textArea.select();
+                try {
+                    document.execCommand('copy');
+                    alert('คัดลอกโค้ดเรียบร้อยแล้ว!');
+                } catch (err) {
+                    alert('ไม่สามารถคัดลอกอัตโนมัติได้\nกรุณาคัดลอกโค้ดในกล่องด้วยตนเอง');
+                }
+                document.body.removeChild(textArea);
             }
-            
-            createPDFFromHTML('single', data);
         }
 
-        function generateProjectPDF(projectId) {
-            const project = allProjectsData.find(p => p.id === projectId);
-            if (!project) {
-                alert('ไม่พบข้อมูลโครงการ');
-                return;
-            }
-            createPDFFromHTML('project', project);
+        function toggleConfig() {
+            const panel = document.getElementById('configPanel');
+            panel.classList.toggle('hidden');
         }
 
-        // Signature functions
+        // Navigation functions
+        function showDashboard() {
+            document.getElementById('dashboard').classList.remove('hidden');
+            document.getElementById('formSection').classList.add('hidden');
+            if (isGoogleConnected) {
+                syncFromSheets();
+            } else {
+                loadDashboardData();
+            }
+        }
+
+        function showForm() {
+            document.getElementById('dashboard').classList.add('hidden');
+            document.getElementById('formSection').classList.remove('hidden');
+        }
+
+        // Signature pad functions
         function initializeSignaturePad() {
             const canvas = document.getElementById('signatureCanvas');
-            if (!canvas) return;
-            
             const ctx = canvas.getContext('2d');
             
             canvas.addEventListener('mousedown', startDrawing);
@@ -1437,7 +1493,6 @@ function doGet(e) {
 
         function clearSignature() {
             const canvas = document.getElementById('signatureCanvas');
-            if (!canvas) return;
             const ctx = canvas.getContext('2d');
             ctx.clearRect(0, 0, canvas.width, canvas.height);
             signatureData = null;
@@ -1445,16 +1500,14 @@ function doGet(e) {
 
         function saveSignature() {
             const canvas = document.getElementById('signatureCanvas');
-            if (!canvas) return;
             signatureData = canvas.toDataURL();
             alert('ลายเซ็นถูกบันทึกแล้ว');
         }
 
+        // KPI table functions
         function addKPIRow() {
             kpiCounter++;
             const table = document.getElementById('kpiTable');
-            if (!table) return;
-            
             const row = document.createElement('tr');
             row.innerHTML = `
                 <td class="border border-gray-300 px-4 py-2">
@@ -1477,41 +1530,7 @@ function doGet(e) {
             table.appendChild(row);
         }
 
-        function previewForm() {
-            const formData = new FormData(document.getElementById('projectForm'));
-            const data = collectFormData(formData);
-            
-            const previewContent = document.getElementById('previewContent');
-            previewContent.innerHTML = `
-                <div class="text-center mb-6">
-                    <h2 class="text-xl font-bold">แบบสรุปประเมินโครงการ ประจำปีงบประมาณ 2568</h2>
-                    <p>โรงเรียนสา อำเภอเวียงสา จังหวัดน่าน</p>
-                </div>
-                
-                <div class="space-y-4">
-                    <div><strong>ชื่อโครงการ:</strong> ${data.projectName || '-'}</div>
-                    <div><strong>ฝ่าย:</strong> ${data.department || '-'}</div>
-                    <div><strong>ผู้รับผิดชอบ:</strong> ${data.responsible || '-'}</div>
-                    <div><strong>ระยะเวลา:</strong> ${data.timeline || '-'}</div>
-                    <div><strong>สรุปผลการประเมิน:</strong> ${data.finalResult || '-'}</div>
-                    <div><strong>ผู้รายงาน:</strong> ${data.reporterName || '-'}</div>
-                    <div><strong>วันที่:</strong> ${data.reportDate || '-'}</div>
-                    ${data.kpiData && data.kpiData.length > 0 ? `
-                    <div><strong>ตัวชี้วัด:</strong>
-                        <ul class="list-disc list-inside ml-4">
-                            ${data.kpiData.map(kpi => `<li>${kpi.kpi}: ${kpi.result}/${kpi.target}% (${kpi.summary})</li>`).join('')}
-                        </ul>
-                    </div>` : ''}
-                </div>
-            `;
-            
-            document.getElementById('previewModal').classList.remove('hidden');
-        }
-
-        function closePreview() {
-            document.getElementById('previewModal').classList.add('hidden');
-        }
-
+        // Storage functions (fallback)
         function saveToStorage(data) {
             let projects = JSON.parse(localStorage.getItem('projects') || '[]');
             projects.push(data);
@@ -1526,95 +1545,6 @@ function doGet(e) {
             
             const projects = JSON.parse(localStorage.getItem('projects') || '[]');
             allProjectsData = projects.map((project, index) => ({ ...project, id: index + 1 }));
-            updateDashboardWithData(allProjectsData);
-        }
-
-        // เพิ่มฟังก์ชัน PDF ที่เหลือ (เนื่องจากความยาวจึงตัดทิ้ง)
-        function createPDFFromHTML(type, data = null) {
-            alert(`สร้าง PDF ประเภท: ${type}`);
-        }
-
-        // Auto-connect function
-        function autoConnectToGoogleScript() {
-            const scriptUrl = document.getElementById('scriptUrl').value || DEFAULT_SCRIPT_URL;
-            if (scriptUrl) {
-                document.getElementById('scriptUrl').value = scriptUrl;
-                testScriptConnection();
-            }
-        }
-
-        // Initialize
-        document.addEventListener('DOMContentLoaded', function() {
-            initializeSignaturePad();
-            loadStoredConfig();
-            autoConnectToGoogleScript();
-            
-            const reportDateInput = document.querySelector('input[name="reportDate"]');
-            if (reportDateInput) {
-                reportDateInput.value = new Date().toISOString().split('T')[0];
-            }
-            
-            // Form submission
-            const projectForm = document.getElementById('projectForm');
-            if (projectForm) {
-                projectForm.addEventListener('submit', async function(e) {
-                    e.preventDefault();
-                    
-                    const submitBtn = document.getElementById('submitBtn');
-                    const submitText = document.getElementById('submitText');
-                    const submitSpinner = document.getElementById('submitSpinner');
-                    
-                    if (submitBtn) submitBtn.disabled = true;
-                    if (submitText) submitText.textContent = 'กำลังบันทึก...';
-                    if (submitSpinner) submitSpinner.classList.remove('hidden');
-                    
-                    try {
-                        const formData = new FormData(this);
-                        const data = collectFormData(formData);
-                        
-                        if (signatureData) {
-                            data.signature = signatureData;
-                        }
-                        
-                        data.timestamp = new Date().toISOString();
-                        saveToStorage(data);
-                        
-                        if (isGoogleConnected) {
-                            try {
-                                showStatus('กำลังส่งข้อมูลไป Google Sheets...', 'loading');
-                                const result = await submitToGoogleScript(data);
-                                
-                                if (result.success !== false) {
-                                    showStatus('ส่งข้อมูลไป Google Sheets เรียบร้อยแล้ว!', 'success');
-                                    document.getElementById('projectForm').reset();
-                                    clearSignature();
-                                    setTimeout(() => syncFromSheets(), 1000);
-                                } else {
-                                    throw new Error(result.message || 'ไม่สามารถบันทึกข้อมูลได้');
-                                }
-                            } catch (error) {
-                                console.error('Submit failed:', error);
-                                showStatus('ส่งข้อมูลไม่สำเร็จ แต่บันทึกในเครื่องแล้ว: ' + error.message, 'error');
-                            }
-                        } else {
-                            showStatus('บันทึกข้อมูลในเครื่องเรียบร้อยแล้ว!', 'success');
-                            loadDashboardData();
-                        }
-                        
-                    } catch (error) {
-                        console.error('Form submission error:', error);
-                        showStatus('เกิดข้อผิดพลาด: ' + error.message, 'error');
-                    } finally {
-                        if (submitBtn) submitBtn.disabled = false;
-                        if (submitText) submitText.textContent = 'บันทึกไป Google Sheets';
-                        if (submitSpinner) submitSpinner.classList.add('hidden');
-                    }
-                });
-            }
-            
-            showDashboard();
-        });
-    </script> projects.map((project, index) => ({ ...project, id: index + 1 }));
             updateDashboardWithData(allProjectsData);
         }
 
@@ -2653,31 +2583,7 @@ function doGet(e) {
         }
 
         // Initialize dashboard on load
-        document.addEventListener('DOMContentLoaded', function() {
-            showDashboard();
-        });
-
-        // เพิ่มฟังก์ชันที่หายไป
-        window.toggleConfig = toggleConfig;
-        window.showDashboard = showDashboard;
-        window.showForm = showForm;
-        window.syncFromSheets = syncFromSheets;
-        window.showPDFExports = showPDFExports;
-        window.closePDFModal = closePDFModal;
-        window.generateSummaryPDF = generateSummaryPDF;
-        window.generateAllProjectsPDF = generateAllProjectsPDF;
-        window.generateDepartmentPDF = generateDepartmentPDF;
-        window.generateSingleProjectPDF = generateSingleProjectPDF;
-        window.generateProjectPDF = generateProjectPDF;
-        window.testScriptConnection = testScriptConnection;
-        window.showScriptInstructions = showScriptInstructions;
-        window.closeInstructions = closeInstructions;
-        window.copyScriptCode = copyScriptCode;
-        window.clearSignature = clearSignature;
-        window.saveSignature = saveSignature;
-        window.addKPIRow = addKPIRow;
-        window.previewForm = previewForm;
-        window.closePreview = closePreview;
+        showDashboard();
     </script>
 </body>
 </html>
