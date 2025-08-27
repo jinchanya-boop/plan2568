@@ -644,11 +644,30 @@ function doGet(e) {
 
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
-            initializeSignaturePad();
-            loadStoredConfig();
-            document.querySelector('input[name="reportDate"]').value = new Date().toISOString().split('T')[0];
-            showDashboard();
+            console.log('DOM loaded, initializing...');
+            try {
+                initializeSignaturePad();
+                loadStoredConfig();
+                const dateInput = document.querySelector('input[name="reportDate"]');
+                if (dateInput) {
+                    dateInput.value = new Date().toISOString().split('T')[0];
+                }
+                showDashboard();
+                console.log('Initialization complete');
+            } catch (error) {
+                console.error('Initialization error:', error);
+            }
         });
+
+        // Error handling wrapper
+        function safeCall(fn, ...args) {
+            try {
+                return fn(...args);
+            } catch (error) {
+                console.error('Function call error:', error);
+                alert('เกิดข้อผิดพลาด: ' + error.message);
+            }
+        }
 
         // Configuration functions
         function loadStoredConfig() {
@@ -1944,54 +1963,4 @@ function doGet(e) {
         }
     </script>
 </body>
-</html>: function(context) {
-                                    const label = context.label || '';
-                                    const value = context.parsed;
-                                    const total = context.dataset.data.reduce((a, b) => a + b, 0);
-                                    const percentage = ((value / total) * 100).toFixed(1);
-                                    return `${label}: ${value} โครงการ (${percentage}%)`;
-                                }
-                            },
-                            titleFont: { family: 'Sarabun' },
-                            bodyFont: { family: 'Sarabun' }
-                        }
-                    }
-                }
-            });
-        }
-
-        function createSuccessRateChart(data) {
-            const ctx = document.getElementById('successRateChart').getContext('2d');
-            
-            if (successRateChart) {
-                successRateChart.destroy();
-            }
-            
-            const labels = Object.keys(data);
-            const successRates = labels.map(dept => {
-                const deptData = data[dept];
-                return deptData.total > 0 ? ((deptData.success / deptData.total) * 100).toFixed(1) : 0;
-            });
-            const totalProjects = labels.map(dept => data[dept].total);
-            
-            successRateChart = new Chart(ctx, {
-                type: 'bar',
-                data: {
-                    labels: labels,
-                    datasets: [{
-                        label: 'อัตราความสำเร็จ (%)',
-                        data: successRates,
-                        backgroundColor: ['rgba(59, 130, 246, 0.8)', 'rgba(16, 185, 129, 0.8)', 'rgba(245, 158, 11, 0.8)', 'rgba(239, 68, 68, 0.8)'],
-                        borderColor: ['rgba(59, 130, 246, 1)', 'rgba(16, 185, 129, 1)', 'rgba(245, 158, 11, 1)', 'rgba(239, 68, 68, 1)'],
-                        borderWidth: 2,
-                        borderRadius: 4
-                    }]
-                },
-                options: {
-                    responsive: true,
-                    maintainAspectRatio: false,
-                    plugins: {
-                        legend: { display: false },
-                        tooltip: {
-                            callbacks: {
-                                label
+</html>
