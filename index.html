@@ -1350,6 +1350,8 @@ function doGet(e) {
 
         // PDF Generation Functions
         // PDF Generation Functions using PDFMake for Thai support
+// PDF Generation Functions using PDFMake
+// แทนที่ฟังก์ชัน generateSummaryPDF ทั้งหมดด้วย:
 function generateSummaryPDF() {
     try {
         const totalProjects = allProjectsData.length;
@@ -1357,151 +1359,36 @@ function generateSummaryPDF() {
         const failedCount = allProjectsData.filter(p => p.finalResult === 'ไม่บรรลุตามเป้าหมาย').length;
         const pendingCount = allProjectsData.filter(p => !p.finalResult || p.finalResult === '').length;
 
-        // Department statistics
-        const departments = ['วิชาการ', 'งบประมาณ', 'บุคคล', 'บริหารทั่วไป'];
-        const deptStats = departments.map(dept => {
-            const deptProjects = allProjectsData.filter(p => p.department === dept);
-            const deptSuccess = deptProjects.filter(p => p.finalResult === 'บรรลุตามเป้าหมาย').length;
-            const successRate = deptProjects.length > 0 ? ((deptSuccess / deptProjects.length) * 100).toFixed(1) : 0;
-            return [dept, deptProjects.length.toString(), `${successRate}%`];
-        });
-
         const docDefinition = {
-            pageSize: 'A4',
-            pageMargins: [40, 60, 40, 60],
-            defaultStyle: {
-                font: 'Roboto',
-                fontSize: 11,
-                lineHeight: 1.3
-            },
+            defaultStyle: { fontSize: 12 },
             content: [
-                {
-                    text: 'รายงานสรุปการประเมินโครงการ',
-                    style: 'header',
-                    alignment: 'center'
-                },
-                {
-                    text: 'โรงเรียนสา อำเภอเวียงสา จังหวัดน่าน',
-                    style: 'subheader',
-                    alignment: 'center'
-                },
-                {
-                    text: `ประจำปีงบประมาณ 2568`,
-                    style: 'subheader',
-                    alignment: 'center',
-                    margin: [0, 0, 0, 20]
-                },
-
-                // Statistics section
-                {
-                    text: 'สถิติภาพรวม',
-                    style: 'sectionHeader'
-                },
+                { text: 'รายงานสรุปการประเมินโครงการ', fontSize: 18, bold: true, alignment: 'center', margin: [0,0,0,10] },
+                { text: 'โรงเรียนสา อำเภอเวียงสา จังหวัดน่าน', fontSize: 14, alignment: 'center', margin: [0,0,0,20] },
+                
+                { text: 'สถิติภาพรวม', fontSize: 14, bold: true, margin: [0,10,0,10] },
+                
                 {
                     columns: [
-                        {
-                            width: '25%',
-                            text: [
-                                { text: 'โครงการทั้งหมด\n', bold: true, color: '#2563EB' },
-                                { text: `${totalProjects} โครงการ`, fontSize: 14, bold: true }
-                            ],
-                            alignment: 'center',
-                            margin: [0, 10, 0, 10]
-                        },
-                        {
-                            width: '25%',
-                            text: [
-                                { text: 'บรรลุเป้าหมาย\n', bold: true, color: '#16A34A' },
-                                { text: `${successCount} โครงการ`, fontSize: 14, bold: true }
-                            ],
-                            alignment: 'center',
-                            margin: [0, 10, 0, 10]
-                        },
-                        {
-                            width: '25%',
-                            text: [
-                                { text: 'ไม่บรรลุเป้าหมาย\n', bold: true, color: '#DC2626' },
-                                { text: `${failedCount} โครงการ`, fontSize: 14, bold: true }
-                            ],
-                            alignment: 'center',
-                            margin: [0, 10, 0, 10]
-                        },
-                        {
-                            width: '25%',
-                            text: [
-                                { text: 'รอดำเนินการ\n', bold: true, color: '#CA8A04' },
-                                { text: `${pendingCount} โครงการ`, fontSize: 14, bold: true }
-                            ],
-                            alignment: 'center',
-                            margin: [0, 10, 0, 10]
-                        }
+                        { text: `โครงการทั้งหมด\n${totalProjects}`, alignment: 'center' },
+                        { text: `บรรลุเป้าหมาย\n${successCount}`, alignment: 'center' },
+                        { text: `ไม่บรรลุเป้าหมาย\n${failedCount}`, alignment: 'center' },
+                        { text: `รอดำเนินการ\n${pendingCount}`, alignment: 'center' }
                     ],
-                    margin: [0, 0, 0, 20]
+                    margin: [0,10,0,20]
                 },
-
-                // Department statistics table
-                {
-                    text: 'สถิติแยกตามฝ่าย',
-                    style: 'sectionHeader'
-                },
-                {
-                    table: {
-                        headerRows: 1,
-                        widths: ['*', 'auto', 'auto'],
-                        body: [
-                            ['ฝ่าย', 'จำนวนโครงการ', 'อัตราความสำเร็จ'],
-                            ...deptStats
-                        ]
-                    },
-                    layout: {
-                        fillColor: function(rowIndex) {
-                            return rowIndex === 0 ? '#F3F4F6' : null;
-                        }
-                    },
-                    margin: [0, 10, 0, 20]
-                },
-
-                // Footer
-                {
-                    text: `สร้างรายงาน: ${new Date().toLocaleString('th-TH')}`,
-                    style: 'footer',
-                    margin: [0, 30, 0, 0]
-                }
-            ],
-            styles: {
-                header: {
-                    fontSize: 18,
-                    bold: true,
-                    margin: [0, 0, 0, 10],
-                    color: '#1F2937'
-                },
-                subheader: {
-                    fontSize: 14,
-                    margin: [0, 5, 0, 5],
-                    color: '#4B5563'
-                },
-                sectionHeader: {
-                    fontSize: 14,
-                    bold: true,
-                    margin: [0, 15, 0, 10],
-                    color: '#1F2937'
-                },
-                footer: {
-                    fontSize: 10,
-                    color: '#6B7280',
-                    alignment: 'center'
-                }
-            }
+                
+                { text: `สร้างรายงาน: ${new Date().toLocaleDateString('th-TH')}`, 
+                  fontSize: 10, alignment: 'center', margin: [0,30,0,0] }
+            ]
         };
-
-        pdfMake.createPdf(docDefinition).download(`รายงานสรุป_${new Date().toISOString().split('T')[0]}.pdf`);
+        
+        pdfMake.createPdf(docDefinition).download('รายงานสรุป.pdf');
 
     } catch (error) {
         console.error('PDF generation error:', error);
         alert('เกิดข้อผิดพลาดในการสร้าง PDF: ' + error.message);
     }
 }
-
 // เพิ่มฟังก์ชัน PDF อื่นๆ ต่อไป...
 
         function generateAllProjectsPDF() {
@@ -2780,4 +2667,5 @@ function generateSummaryPDF() {
     </script>
 </body>
 </html>
+
 
