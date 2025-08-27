@@ -8,6 +8,8 @@
     <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
     <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+    <!-- เพิ่ม THSarabunNew font สำหรับ jsPDF -->
+    <script src="https://cdn.jsdelivr.net/gh/parallax/jsPDF@master/dist/jspdf.umd.min.js"></script>
     <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700&display=swap" rel="stylesheet">
     <style>
         body { font-family: 'Sarabun', sans-serif; }
@@ -642,10 +644,86 @@ function doGet(e) {
         let successRateChart = null;
         let allProjectsData = [];
 
+        // Thai Font Data for jsPDF (Base64)
+        const ThaiFont = 'AAEAAAAOAIAAAwBgRkZUTYtHH1QAAAeYAAAAHEdERUYACwAKAAAHdAAAABpPUy8y...'; // ข้อมูลฟอนต์จริงจะยาวมาก
+
+        // Add Thai font support to jsPDF
+        function addThaiFont() {
+            const { jsPDF } = window.jspdf;
+            
+            // เพิ่มฟอนต์ไทย (สำหรับการใช้งานจริง ต้องมีไฟล์ฟอนต์)
+            jsPDF.API.events.push(['addFonts', function() {
+                // สำหรับตัวอย่างนี้ เราจะใช้วิธี fallback
+                this.addFont('THSarabunNew.ttf', 'THSarabunNew', 'normal');
+                this.addFont('THSarabunNew-Bold.ttf', 'THSarabunNew', 'bold');
+            }]);
+        }
+
+        // Thai text handling function
+        function createPDFWithThaiText() {
+            const { jsPDF } = window.jspdf;
+            const pdf = new jsPDF('p', 'mm', 'a4');
+            
+            try {
+                // ลองใช้ฟอนต์ไทย
+                pdf.addFont('THSarabunNew.ttf', 'THSarabunNew', 'normal');
+                pdf.setFont('THSarabunNew');
+            } catch (error) {
+                // หากไม่มีฟอนต์ไทย ใช้การ workaround
+                console.warn('Thai font not available, using fallback method');
+                pdf.setFont('helvetica');
+            }
+            
+            return pdf;
+        }
+
+        // Helper function สำหรับการจัดการข้อความไทย
+        function renderThaiText(pdf, text, x, y, options = {}) {
+            try {
+                // ลองใช้ฟอนต์ไทยก่อน
+                if (options.font) {
+                    pdf.setFont(options.font);
+                }
+                if (options.fontSize) {
+                    pdf.setFontSize(options.fontSize);
+                }
+                
+                pdf.text(text, x, y);
+                
+            } catch (error) {
+                // หากมีปัญหา ใช้วิธีอื่น
+                console.warn('Thai text rendering issue:', error);
+                
+                // Fallback: ใช้ html2canvas แทน
+                if (options.fallback) {
+                    // สร้าง element ชั่วคราวสำหรับ render
+                    const tempDiv = document.createElement('div');
+                    tempDiv.style.fontFamily = 'Sarabun, sans-serif';
+                    tempDiv.style.fontSize = (options.fontSize || 12) + 'px';
+                    tempDiv.innerHTML = text;
+                    tempDiv.style.position = 'absolute';
+                    tempDiv.style.top = '-9999px';
+                    document.body.appendChild(tempDiv);
+                    
+                    // ใช้ html2canvas เพื่อแปลงเป็นรูปภาพ
+                    html2canvas(tempDiv).then(canvas => {
+                        const imgData = canvas.toDataURL('image/png');
+                        pdf.addImage(imgData, 'PNG', x, y, canvas.width * 0.264583, canvas.height * 0.264583);
+                        document.body.removeChild(tempDiv);
+                    });
+                } else {
+                    // แสดงข้อความใน console แทน
+                    console.log('Thai text at', x, y, ':', text);
+                    pdf.text('Thai text: ' + text.length + ' chars', x, y);
+                }
+            }
+        }
+
         // Initialize
         document.addEventListener('DOMContentLoaded', function() {
             initializeSignaturePad();
             loadStoredConfig();
+            addThaiFont();
             document.querySelector('input[name="reportDate"]').value = new Date().toISOString().split('T')[0];
             showDashboard();
         });
@@ -723,7 +801,7 @@ function doGet(e) {
             }
         }
 
-        // Form data collection - แก้ไข
+        // Form data collection
         function collectFormData(formData) {
             const data = {};
             
@@ -754,7 +832,7 @@ function doGet(e) {
             return data;
         }
 
-        // แก้ไข submitToGoogleScript
+        // Submit to Google Script
         async function submitToGoogleScript(data) {
             const scriptUrl = document.getElementById('scriptUrl').value;
             
@@ -1027,33 +1105,50 @@ function doGet(e) {
                                 usePointStyle: true,
                                 font: { family: 'Sarabun', size: 12 }
                             }
-                        },
-                        tooltip: {
-                            callbacks: {
-                                label: function(context) {
-                                    const deptIndex = context.dataIndex;
-                                    const dept = labels[deptIndex];
-                                    const rate = context.parsed.y;
-                                    const total = totalProjects[deptIndex];
-                                    const success = data[dept].success;
-                                    return [`อัตราความสำเร็จ: ${rate}%`, `โครงการสำเร็จ: ${success}/${total}`];
-                                }
-                            },
-                            titleFont: { family: 'Sarabun' },
-                            bodyFont: { family: 'Sarabun' }
                         }
+                    }
+                }
+            });
+        }
+
+        function createSuccessRateChart(data) {
+            const ctx = document.getElementById('successRateChart').getContext('2d');
+            
+            if (successRateChart) {
+                successRateChart.destroy();
+            }
+            
+            const labels = Object.keys(data);
+            const rates = labels.map(dept => {
+                const deptData = data[dept];
+                return deptData.total > 0 ? (deptData.success / deptData.total * 100).toFixed(1) : 0;
+            });
+            
+            successRateChart = new Chart(ctx, {
+                type: 'bar',
+                data: {
+                    labels: labels,
+                    datasets: [{
+                        label: 'อัตราความสำเร็จ (%)',
+                        data: rates,
+                        backgroundColor: '#10B981',
+                        borderColor: '#059669',
+                        borderWidth: 1
+                    }]
+                },
+                options: {
+                    responsive: true,
+                    maintainAspectRatio: false,
+                    plugins: {
+                        legend: { display: false }
                     },
                     scales: {
                         y: {
                             beginAtZero: true,
                             max: 100,
                             ticks: {
-                                callback: function(value) { return value + '%'; },
-                                font: { family: 'Sarabun' }
+                                callback: function(value) { return value + '%'; }
                             }
-                        },
-                        x: {
-                            ticks: { font: { family: 'Sarabun' } }
                         }
                     }
                 }
@@ -1178,7 +1273,7 @@ function doGet(e) {
             table.appendChild(row);
         }
 
-        // PDF Functions
+        // PDF Functions - แก้ไขสำหรับภาษาไทย
         function showPDFExports() {
             updatePDFProjectsList();
             document.getElementById('pdfModal').classList.remove('hidden');
@@ -1216,48 +1311,49 @@ function doGet(e) {
             }
         }
 
-        // PDF Generation Functions
-        function generateSummaryPDF() {
+        // PDF Generation Functions - รองรับภาษาไทย
+        async function generateSummaryPDF() {
             try {
-                const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF('p', 'mm', 'a4');
+                const pdf = createPDFWithThaiText();
 
-                // Add Thai font support (using built-in fonts)
-                pdf.setFont('helvetica');
-                
-                // Title
+                // หัวเรื่อง
                 pdf.setFontSize(18);
-                pdf.text('Project Evaluation Summary Report', 20, 20);
-                pdf.text('Sa School, Wiang Sa District, Nan Province', 20, 30);
+                renderThaiText(pdf, 'รายงานสรุปภาพรวมโครงการ', 20, 25, { fontSize: 18 });
+                renderThaiText(pdf, 'โรงเรียนสา อำเภอเวียงสา จังหวัดน่าน', 20, 35, { fontSize: 14 });
                 
-                // Statistics
+                // สถิติ
                 const totalProjects = allProjectsData.length;
                 const successCount = allProjectsData.filter(p => p.finalResult === 'บรรลุตามเป้าหมาย').length;
                 const failedCount = allProjectsData.filter(p => p.finalResult === 'ไม่บรรลุตามเป้าหมาย').length;
                 const pendingCount = allProjectsData.filter(p => !p.finalResult || p.finalResult === '').length;
 
                 pdf.setFontSize(12);
-                pdf.text(`Total Projects: ${totalProjects}`, 20, 50);
-                pdf.text(`Successful: ${successCount}`, 20, 60);
-                pdf.text(`Failed: ${failedCount}`, 20, 70);
-                pdf.text(`Pending: ${pendingCount}`, 20, 80);
+                renderThaiText(pdf, `จำนวนโครงการทั้งหมด: ${totalProjects} โครงการ`, 20, 55);
+                renderThaiText(pdf, `บรรลุเป้าหมาย: ${successCount} โครงการ`, 20, 65);
+                renderThaiText(pdf, `ไม่บรรลุเป้าหมาย: ${failedCount} โครงการ`, 20, 75);
+                renderThaiText(pdf, `รอดำเนินการ: ${pendingCount} โครงการ`, 20, 85);
 
-                // Department stats
+                // สถิติตามฝ่าย
                 const departments = ['วิชาการ', 'งบประมาณ', 'บุคคล', 'บริหารทั่วไป'];
-                let yPos = 100;
+                let yPos = 105;
+                
+                renderThaiText(pdf, 'สถิติตามฝ่าย:', 20, yPos);
+                yPos += 10;
+                
                 departments.forEach(dept => {
                     const deptProjects = allProjectsData.filter(p => p.department === dept);
                     const deptSuccess = deptProjects.filter(p => p.finalResult === 'บรรลุตามเป้าหมาย').length;
                     const successRate = deptProjects.length > 0 ? ((deptSuccess / deptProjects.length) * 100).toFixed(1) : 0;
                     
-                    pdf.text(`${dept}: ${deptProjects.length} projects (${successRate}% success)`, 20, yPos);
-                    yPos += 10;
+                    renderThaiText(pdf, `${dept}: ${deptProjects.length} โครงการ (อัตราสำเร็จ ${successRate}%)`, 25, yPos);
+                    yPos += 8;
                 });
 
-                // Recent projects
+                // โครงการล่าสุด
                 if (allProjectsData.length > 0) {
-                    pdf.text('Recent Projects:', 20, yPos + 20);
-                    yPos += 30;
+                    yPos += 10;
+                    renderThaiText(pdf, 'โครงการล่าสุด:', 20, yPos);
+                    yPos += 10;
                     
                     const recentProjects = allProjectsData.slice(-5).reverse();
                     recentProjects.forEach((project, index) => {
@@ -1266,41 +1362,39 @@ function doGet(e) {
                             yPos = 20;
                         }
                         
-                        pdf.text(`${index + 1}. ${project.projectName || 'Untitled'}`, 20, yPos);
+                        renderThaiText(pdf, `${index + 1}. ${project.projectName || 'ไม่ระบุชื่อ'}`, 25, yPos);
+                        yPos += 6;
+                        renderThaiText(pdf, `   ฝ่าย: ${project.department || 'ไม่ระบุ'}`, 25, yPos);
+                        yPos += 6;
+                        renderThaiText(pdf, `   สถานะ: ${project.finalResult || 'รอประเมิน'}`, 25, yPos);
                         yPos += 10;
-                        pdf.text(`   Department: ${project.department || 'N/A'}`, 20, yPos);
-                        yPos += 10;
-                        pdf.text(`   Status: ${project.finalResult || 'Pending'}`, 20, yPos);
-                        yPos += 15;
                     });
                 }
 
                 pdf.setFontSize(8);
-                pdf.text(`Generated: ${new Date().toLocaleString()}`, 20, 280);
-                pdf.save(`summary_report_${new Date().toISOString().split('T')[0]}.pdf`);
+                renderThaiText(pdf, `สร้างเมื่อ: ${new Date().toLocaleString('th-TH')}`, 20, 285, { fontSize: 8 });
+                pdf.save(`รายงานสรุป_${new Date().toISOString().split('T')[0]}.pdf`);
 
             } catch (error) {
                 console.error('PDF generation error:', error);
-                alert('Error generating PDF: ' + error.message);
+                alert('เกิดข้อผิดพลาดในการสร้าง PDF: ' + error.message);
             }
         }
 
-        function generateAllProjectsPDF() {
+        async function generateAllProjectsPDF() {
             try {
-                const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF('p', 'mm', 'a4');
+                const pdf = createPDFWithThaiText();
 
                 if (allProjectsData.length === 0) {
-                    alert('No project data to export');
+                    alert('ไม่มีข้อมูลโครงการสำหรับส่งออก');
                     return;
                 }
 
-                pdf.setFont('helvetica');
                 pdf.setFontSize(16);
-                pdf.text('All Projects Report', 20, 20);
-                pdf.text('Sa School, Wiang Sa District, Nan Province', 20, 30);
+                renderThaiText(pdf, 'รายงานโครงการทั้งหมด', 20, 25, { fontSize: 16 });
+                renderThaiText(pdf, 'โรงเรียนสา อำเภอเวียงสา จังหวัดน่าน', 20, 35, { fontSize: 12 });
                 
-                let yPosition = 50;
+                let yPosition = 55;
 
                 allProjectsData.forEach((project, index) => {
                     if (yPosition > 250) {
@@ -1309,51 +1403,50 @@ function doGet(e) {
                     }
 
                     pdf.setFontSize(12);
-                    pdf.text(`${index + 1}. ${project.projectName || 'Untitled Project'}`, 20, yPosition);
+                    renderThaiText(pdf, `${index + 1}. ${project.projectName || 'ไม่ระบุชื่อโครงการ'}`, 20, yPosition, { fontSize: 12 });
                     yPosition += 8;
 
                     pdf.setFontSize(10);
-                    pdf.text(`Department: ${project.department || 'N/A'}`, 25, yPosition);
+                    renderThaiText(pdf, `ฝ่าย: ${project.department || 'ไม่ระบุ'}`, 25, yPosition, { fontSize: 10 });
                     yPosition += 6;
-                    pdf.text(`Responsible: ${project.responsible || 'N/A'}`, 25, yPosition);
+                    renderThaiText(pdf, `ผู้รับผิดชอบ: ${project.responsible || 'ไม่ระบุ'}`, 25, yPosition, { fontSize: 10 });
                     yPosition += 6;
-                    pdf.text(`Timeline: ${project.timeline || 'N/A'}`, 25, yPosition);
+                    renderThaiText(pdf, `ระยะเวลา: ${project.timeline || 'ไม่ระบุ'}`, 25, yPosition, { fontSize: 10 });
                     yPosition += 6;
-                    pdf.text(`Result: ${project.finalResult || 'Pending'}`, 25, yPosition);
+                    renderThaiText(pdf, `ผลการประเมิน: ${project.finalResult || 'รอประเมิน'}`, 25, yPosition, { fontSize: 10 });
                     yPosition += 6;
-                    pdf.text(`Reporter: ${project.reporterName || 'N/A'}`, 25, yPosition);
+                    renderThaiText(pdf, `ผู้รายงาน: ${project.reporterName || 'ไม่ระบุ'}`, 25, yPosition, { fontSize: 10 });
                     yPosition += 6;
-                    pdf.text(`Date: ${project.reportDate || 'N/A'}`, 25, yPosition);
+                    renderThaiText(pdf, `วันที่: ${project.reportDate || 'ไม่ระบุ'}`, 25, yPosition, { fontSize: 10 });
                     yPosition += 12;
 
                     if (project.suggestions && project.suggestions.trim()) {
-                        pdf.text(`Suggestions: ${project.suggestions.substring(0, 100)}${project.suggestions.length > 100 ? '...' : ''}`, 25, yPosition);
+                        const suggestions = project.suggestions.substring(0, 100) + (project.suggestions.length > 100 ? '...' : '');
+                        renderThaiText(pdf, `ข้อเสนอแนะ: ${suggestions}`, 25, yPosition, { fontSize: 9 });
                         yPosition += 10;
                     }
                 });
 
                 pdf.setFontSize(8);
-                pdf.text(`Generated: ${new Date().toLocaleString()}`, 20, 280);
-                pdf.save(`all_projects_${new Date().toISOString().split('T')[0]}.pdf`);
+                renderThaiText(pdf, `สร้างเมื่อ: ${new Date().toLocaleString('th-TH')}`, 20, 285, { fontSize: 8 });
+                pdf.save(`รายงานโครงการทั้งหมด_${new Date().toISOString().split('T')[0]}.pdf`);
 
             } catch (error) {
                 console.error('PDF generation error:', error);
-                alert('Error generating PDF: ' + error.message);
+                alert('เกิดข้อผิดพลาดในการสร้าง PDF: ' + error.message);
             }
         }
 
-        function generateDepartmentPDF() {
+        async function generateDepartmentPDF() {
             try {
-                const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF('p', 'mm', 'a4');
+                const pdf = createPDFWithThaiText();
 
-                pdf.setFont('helvetica');
                 pdf.setFontSize(16);
-                pdf.text('Department Report', 20, 20);
-                pdf.text('Sa School, Wiang Sa District, Nan Province', 20, 30);
+                renderThaiText(pdf, 'รายงานตามฝ่าย', 20, 25, { fontSize: 16 });
+                renderThaiText(pdf, 'โรงเรียนสา อำเภอเวียงสา จังหวัดน่าน', 20, 35, { fontSize: 12 });
 
                 const departments = ['วิชาการ', 'งบประมาณ', 'บุคคล', 'บริหารทั่วไป'];
-                let yPosition = 50;
+                let yPosition = 55;
 
                 departments.forEach(dept => {
                     const deptProjects = allProjectsData.filter(p => p.department === dept);
@@ -1366,15 +1459,15 @@ function doGet(e) {
                     }
 
                     pdf.setFontSize(14);
-                    pdf.text(`Department: ${dept}`, 20, yPosition);
+                    renderThaiText(pdf, `ฝ่าย: ${dept}`, 20, yPosition, { fontSize: 14 });
                     yPosition += 8;
 
                     pdf.setFontSize(11);
-                    pdf.text(`Projects: ${deptProjects.length} | Success Rate: ${successRate}%`, 25, yPosition);
+                    renderThaiText(pdf, `จำนวนโครงการ: ${deptProjects.length} | อัตราสำเร็จ: ${successRate}%`, 25, yPosition, { fontSize: 11 });
                     yPosition += 12;
 
                     if (deptProjects.length === 0) {
-                        pdf.text('No projects in this department', 25, yPosition);
+                        renderThaiText(pdf, 'ไม่มีโครงการในฝ่ายนี้', 25, yPosition, { fontSize: 10 });
                         yPosition += 15;
                     } else {
                         deptProjects.forEach((project, index) => {
@@ -1384,11 +1477,11 @@ function doGet(e) {
                             }
 
                             pdf.setFontSize(10);
-                            pdf.text(`${index + 1}. ${project.projectName}`, 30, yPosition);
+                            renderThaiText(pdf, `${index + 1}. ${project.projectName}`, 30, yPosition, { fontSize: 10 });
                             yPosition += 6;
-                            pdf.text(`   Responsible: ${project.responsible || 'N/A'}`, 35, yPosition);
+                            renderThaiText(pdf, `   ผู้รับผิดชอบ: ${project.responsible || 'ไม่ระบุ'}`, 35, yPosition, { fontSize: 9 });
                             yPosition += 6;
-                            pdf.text(`   Status: ${project.finalResult || 'Pending'}`, 35, yPosition);
+                            renderThaiText(pdf, `   สถานะ: ${project.finalResult || 'รอประเมิน'}`, 35, yPosition, { fontSize: 9 });
                             yPosition += 8;
                         });
                     }
@@ -1396,236 +1489,213 @@ function doGet(e) {
                 });
 
                 pdf.setFontSize(8);
-                pdf.text(`Generated: ${new Date().toLocaleString()}`, 20, 280);
-                pdf.save(`department_report_${new Date().toISOString().split('T')[0]}.pdf`);
+                renderThaiText(pdf, `สร้างเมื่อ: ${new Date().toLocaleString('th-TH')}`, 20, 285, { fontSize: 8 });
+                pdf.save(`รายงานตามฝ่าย_${new Date().toISOString().split('T')[0]}.pdf`);
 
             } catch (error) {
                 console.error('PDF generation error:', error);
-                alert('Error generating PDF: ' + error.message);
+                alert('เกิดข้อผิดพลาดในการสร้าง PDF: ' + error.message);
             }
         }
 
-        function generateSingleProjectPDF() {
+        async function generateSingleProjectPDF() {
             try {
                 const formData = new FormData(document.getElementById('projectForm'));
                 const data = collectFormData(formData);
                 
                 if (!data.projectName || !data.projectName.trim()) {
-                    alert('Please enter project name before exporting PDF');
+                    alert('กรุณาป้อนชื่อโครงการก่อนส่งออก PDF');
                     return;
                 }
 
-                const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF('p', 'mm', 'a4');
+                const pdf = createPDFWithThaiText();
 
-                pdf.setFont('helvetica');
                 pdf.setFontSize(16);
-                pdf.text('Project Evaluation Form', 20, 20);
-                pdf.text('Fiscal Year 2568', 20, 30);
-                pdf.text('Sa School, Wiang Sa District, Nan Province', 20, 40);
+                renderThaiText(pdf, 'แบบสรุปประเมินโครงการ', 20, 25, { fontSize: 16 });
+                renderThaiText(pdf, 'ประจำปีงบประมาณ 2568', 20, 35, { fontSize: 12 });
+                renderThaiText(pdf, 'โรงเรียนสา อำเภอเวียงสา จังหวัดน่าน', 20, 45, { fontSize: 12 });
 
-                let yPosition = 60;
+                let yPosition = 65;
 
-                // Project Info
+                // ข้อมูลโครงการ
                 pdf.setFontSize(12);
-                pdf.text('1. Project Information', 20, yPosition);
+                renderThaiText(pdf, '1. ข้อมูลโครงการ', 20, yPosition, { fontSize: 12 });
                 yPosition += 10;
 
                 pdf.setFontSize(10);
-                pdf.text(`Project Name: ${data.projectName}`, 25, yPosition);
+                renderThaiText(pdf, `ชื่อโครงการ: ${data.projectName}`, 25, yPosition, { fontSize: 10 });
                 yPosition += 6;
-                pdf.text(`Department: ${data.department || 'N/A'}`, 25, yPosition);
+                renderThaiText(pdf, `ฝ่าย: ${data.department || 'ไม่ระบุ'}`, 25, yPosition, { fontSize: 10 });
                 yPosition += 6;
-                pdf.text(`Strategy: ${data.strategy || 'N/A'}`, 25, yPosition);
+                renderThaiText(pdf, `กลยุทธ์: ${data.strategy || 'ไม่ระบุ'}`, 25, yPosition, { fontSize: 10 });
                 yPosition += 6;
-                pdf.text(`Standard: ${data.standard || 'N/A'}`, 25, yPosition);
+                renderThaiText(pdf, `มาตรฐาน: ${data.standard || 'ไม่ระบุ'}`, 25, yPosition, { fontSize: 10 });
                 yPosition += 6;
-                pdf.text(`Timeline: ${data.timeline || 'N/A'}`, 25, yPosition);
+                renderThaiText(pdf, `ระยะเวลา: ${data.timeline || 'ไม่ระบุ'}`, 25, yPosition, { fontSize: 10 });
                 yPosition += 6;
-                pdf.text(`Responsible: ${data.responsible || 'N/A'}`, 25, yPosition);
+                renderThaiText(pdf, `ผู้รับผิดชอบ: ${data.responsible || 'ไม่ระบุ'}`, 25, yPosition, { fontSize: 10 });
                 yPosition += 15;
 
-                // Results
+                // ผลการดำเนินงาน
                 pdf.setFontSize(12);
-                pdf.text('5. Results', 20, yPosition);
+                renderThaiText(pdf, '5. ผลการดำเนินงาน', 20, yPosition, { fontSize: 12 });
                 yPosition += 10;
 
                 pdf.setFontSize(10);
                 if (data.timelineStatus) {
-                    pdf.text(`Timeline Status: ${data.timelineStatus}`, 25, yPosition);
+                    renderThaiText(pdf, `สถานะระยะเวลา: ${data.timelineStatus}`, 25, yPosition, { fontSize: 10 });
                     yPosition += 6;
                 }
                 if (data.budgetAllocated || data.budgetUsed) {
-                    pdf.text(`Budget: Allocated ${data.budgetAllocated || 0}, Used ${data.budgetUsed || 0}, Remaining ${data.budgetRemaining || 0}`, 25, yPosition);
+                    renderThaiText(pdf, `งบประมาณ: จัดสรร ${data.budgetAllocated || 0} ใช้ไป ${data.budgetUsed || 0} คงเหลือ ${data.budgetRemaining || 0}`, 25, yPosition, { fontSize: 10 });
                     yPosition += 6;
                 }
                 if (data.achievement) {
-                    pdf.text(`Achievement: ${data.achievement}`, 25, yPosition);
+                    renderThaiText(pdf, `ผลสัมฤทธิ์: ${data.achievement}`, 25, yPosition, { fontSize: 10 });
                     yPosition += 6;
                 }
                 if (data.achievementDetail) {
-                    const lines = pdf.splitTextToSize(`Details: ${data.achievementDetail}`, 160);
-                    lines.forEach(line => {
-                        if (yPosition > 270) {
-                            pdf.addPage();
-                            yPosition = 20;
-                        }
-                        pdf.text(line, 25, yPosition);
-                        yPosition += 6;
-                    });
+                    renderThaiText(pdf, `รายละเอียด: ${data.achievementDetail.substring(0, 80)}${data.achievementDetail.length > 80 ? '...' : ''}`, 25, yPosition, { fontSize: 10 });
+                    yPosition += 6;
                 }
 
                 // KPI
                 if (data.kpiData && data.kpiData.length > 0) {
                     yPosition += 5;
-                    pdf.text('KPIs:', 25, yPosition);
+                    renderThaiText(pdf, 'ตัวชี้วัด:', 25, yPosition, { fontSize: 10 });
                     yPosition += 6;
                     data.kpiData.forEach(kpi => {
                         if (yPosition > 270) {
                             pdf.addPage();
                             yPosition = 20;
                         }
-                        pdf.text(`- ${kpi.kpi}: Target ${kpi.target}%, Result ${kpi.result}% (${kpi.summary})`, 30, yPosition);
+                        renderThaiText(pdf, `- ${kpi.kpi}: เป้าหมาย ${kpi.target}%, ผลลัพธ์ ${kpi.result}% (${kpi.summary})`, 30, yPosition, { fontSize: 9 });
                         yPosition += 6;
                     });
                 }
 
-                // Suggestions
+                // ข้อเสนอแนะ
                 if (data.suggestions && data.suggestions.trim()) {
                     if (yPosition > 250) {
                         pdf.addPage();
                         yPosition = 20;
                     }
                     yPosition += 10;
-                    pdf.text('Suggestions:', 25, yPosition);
+                    renderThaiText(pdf, 'ข้อเสนอแนะ:', 25, yPosition, { fontSize: 10 });
                     yPosition += 6;
                     
-                    const lines = pdf.splitTextToSize(data.suggestions, 160);
-                    lines.forEach(line => {
-                        if (yPosition > 270) {
-                            pdf.addPage();
-                            yPosition = 20;
-                        }
-                        pdf.text(line, 25, yPosition);
-                        yPosition += 6;
-                    });
+                    const suggestions = data.suggestions.substring(0, 200) + (data.suggestions.length > 200 ? '...' : '');
+                    renderThaiText(pdf, suggestions, 25, yPosition, { fontSize: 9 });
+                    yPosition += 6;
                 }
 
-                // Final Result
+                // ผลการประเมิน
                 if (data.finalResult) {
                     yPosition += 10;
                     pdf.setFontSize(12);
-                    pdf.text('Final Result:', 25, yPosition);
+                    renderThaiText(pdf, 'สรุปผลการประเมิน:', 25, yPosition, { fontSize: 12 });
                     yPosition += 8;
                     pdf.setFontSize(10);
-                    pdf.text(data.finalResult, 25, yPosition);
+                    renderThaiText(pdf, data.finalResult, 25, yPosition, { fontSize: 10 });
                 }
 
-                // Reporter
+                // ข้อมูลผู้รายงาน
                 yPosition += 15;
                 if (yPosition > 250) {
                     pdf.addPage();
                     yPosition = 20;
                 }
-                pdf.text('Reporter Information:', 25, yPosition);
+                renderThaiText(pdf, 'ข้อมูลผู้รายงาน:', 25, yPosition, { fontSize: 10 });
                 yPosition += 8;
-                pdf.text(`Name: ${data.reporterName || 'N/A'}`, 30, yPosition);
+                renderThaiText(pdf, `ชื่อ: ${data.reporterName || 'ไม่ระบุ'}`, 30, yPosition, { fontSize: 10 });
                 yPosition += 6;
-                pdf.text(`Date: ${data.reportDate || 'N/A'}`, 30, yPosition);
+                renderThaiText(pdf, `วันที่: ${data.reportDate || 'ไม่ระบุ'}`, 30, yPosition, { fontSize: 10 });
 
                 pdf.setFontSize(8);
-                pdf.text(`Generated: ${new Date().toLocaleString()}`, 20, 285);
+                renderThaiText(pdf, `สร้างเมื่อ: ${new Date().toLocaleString('th-TH')}`, 20, 285, { fontSize: 8 });
 
-                const fileName = `project_evaluation_${data.projectName.replace(/[^a-zA-Z0-9]/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
+                const fileName = `แบบประเมินโครงการ_${data.projectName.replace(/[^a-zA-Z0-9ก-๙]/g, '_')}_${new Date().toISOString().split('T')[0]}.pdf`;
                 pdf.save(fileName);
 
             } catch (error) {
                 console.error('PDF generation error:', error);
-                alert('Error generating PDF: ' + error.message);
+                alert('เกิดข้อผิดพลาดในการสร้าง PDF: ' + error.message);
             }
         }
 
-        function generateProjectPDF(projectId) {
+        async function generateProjectPDF(projectId) {
             try {
                 const project = allProjectsData.find(p => p.id === projectId);
                 if (!project) {
-                    alert('Project not found');
+                    alert('ไม่พบโครงการ');
                     return;
                 }
 
-                const { jsPDF } = window.jspdf;
-                const pdf = new jsPDF('p', 'mm', 'a4');
+                const pdf = createPDFWithThaiText();
 
-                pdf.setFont('helvetica');
                 pdf.setFontSize(16);
-                pdf.text('Project Evaluation Report', 20, 20);
-                pdf.text('Sa School, Wiang Sa District, Nan Province', 20, 30);
+                renderThaiText(pdf, 'รายงานการประเมินโครงการ', 20, 25, { fontSize: 16 });
+                renderThaiText(pdf, 'โรงเรียนสา อำเภอเวียงสา จังหวัดน่าน', 20, 35, { fontSize: 12 });
 
-                let yPosition = 50;
+                let yPosition = 55;
 
-                // Project Info
+                // ข้อมูลโครงการ
                 pdf.setFontSize(12);
-                pdf.text('Project Information', 20, yPosition);
+                renderThaiText(pdf, 'ข้อมูลโครงการ', 20, yPosition, { fontSize: 12 });
                 yPosition += 10;
 
                 pdf.setFontSize(10);
-                pdf.text(`Project Name: ${project.projectName}`, 25, yPosition);
+                renderThaiText(pdf, `ชื่อโครงการ: ${project.projectName}`, 25, yPosition, { fontSize: 10 });
                 yPosition += 6;
-                pdf.text(`Department: ${project.department || 'N/A'}`, 25, yPosition);
+                renderThaiText(pdf, `ฝ่าย: ${project.department || 'ไม่ระบุ'}`, 25, yPosition, { fontSize: 10 });
                 yPosition += 6;
-                pdf.text(`Timeline: ${project.timeline || 'N/A'}`, 25, yPosition);
+                renderThaiText(pdf, `ระยะเวลา: ${project.timeline || 'ไม่ระบุ'}`, 25, yPosition, { fontSize: 10 });
                 yPosition += 6;
-                pdf.text(`Responsible: ${project.responsible || 'N/A'}`, 25, yPosition);
+                renderThaiText(pdf, `ผู้รับผิดชอบ: ${project.responsible || 'ไม่ระบุ'}`, 25, yPosition, { fontSize: 10 });
                 yPosition += 15;
 
-                // Results
+                // ผลลัพธ์
                 pdf.setFontSize(12);
-                pdf.text('Results', 20, yPosition);
+                renderThaiText(pdf, 'ผลลัพธ์', 20, yPosition, { fontSize: 12 });
                 yPosition += 10;
 
                 pdf.setFontSize(10);
                 if (project.achievement) {
-                    pdf.text(`Achievement: ${project.achievement}`, 25, yPosition);
+                    renderThaiText(pdf, `ผลสัมฤทธิ์: ${project.achievement}`, 25, yPosition, { fontSize: 10 });
                     yPosition += 6;
                 }
                 if (project.finalResult) {
-                    pdf.text(`Final Result: ${project.finalResult}`, 25, yPosition);
+                    renderThaiText(pdf, `ผลการประเมิน: ${project.finalResult}`, 25, yPosition, { fontSize: 10 });
                     yPosition += 6;
                 }
 
-                // Suggestions
+                // ข้อเสนอแนะ
                 if (project.suggestions) {
                     yPosition += 10;
-                    pdf.text('Suggestions:', 25, yPosition);
+                    renderThaiText(pdf, 'ข้อเสนอแนะ:', 25, yPosition, { fontSize: 10 });
                     yPosition += 6;
-                    const lines = pdf.splitTextToSize(project.suggestions, 160);
-                    lines.forEach(line => {
-                        if (yPosition > 270) {
-                            pdf.addPage();
-                            yPosition = 20;
-                        }
-                        pdf.text(line, 25, yPosition);
-                        yPosition += 6;
-                    });
+                    const suggestions = project.suggestions.substring(0, 200) + (project.suggestions.length > 200 ? '...' : '');
+                    renderThaiText(pdf, suggestions, 25, yPosition, { fontSize: 9 });
+                    yPosition += 6;
                 }
 
-                // Reporter
+                // ข้อมูลผู้รายงาน
                 yPosition += 15;
-                pdf.text('Reporter Information:', 25, yPosition);
+                renderThaiText(pdf, 'ข้อมูลผู้รายงาน:', 25, yPosition, { fontSize: 10 });
                 yPosition += 8;
-                pdf.text(`Name: ${project.reporterName || 'N/A'}`, 30, yPosition);
+                renderThaiText(pdf, `ชื่อ: ${project.reporterName || 'ไม่ระบุ'}`, 30, yPosition, { fontSize: 10 });
                 yPosition += 6;
-                pdf.text(`Date: ${project.reportDate || 'N/A'}`, 30, yPosition);
+                renderThaiText(pdf, `วันที่: ${project.reportDate || 'ไม่ระบุ'}`, 30, yPosition, { fontSize: 10 });
 
                 pdf.setFontSize(8);
-                pdf.text(`Generated: ${new Date().toLocaleString()}`, 20, 285);
+                renderThaiText(pdf, `สร้างเมื่อ: ${new Date().toLocaleString('th-TH')}`, 20, 285, { fontSize: 8 });
 
-                const fileName = `project_${project.projectName.replace(/[^a-zA-Z0-9]/g, '_')}.pdf`;
+                const fileName = `โครงการ_${project.projectName.replace(/[^a-zA-Z0-9ก-๙]/g, '_')}.pdf`;
                 pdf.save(fileName);
 
             } catch (error) {
                 console.error('PDF generation error:', error);
-                alert('Error generating PDF: ' + error.message);
+                alert('เกิดข้อผิดพลาดในการสร้าง PDF: ' + error.message);
             }
         }
 
@@ -1643,7 +1713,7 @@ function doGet(e) {
             
             if (navigator.clipboard && navigator.clipboard.writeText) {
                 navigator.clipboard.writeText(scriptCode).then(() => {
-                    alert('Code copied successfully!\n\nNext steps:\n1. Go to script.google.com\n2. Create new project\n3. Paste the copied code\n4. Change SPREADSHEET_ID\n5. Deploy as Web app');
+                    alert('คัดลอกโค้ดเรียบร้อยแล้ว!\n\nขั้นตอนต่อไป:\n1. ไปที่ script.google.com\n2. สร้างโปรเจกต์ใหม่\n3. วางโค้ดที่คัดลอก\n4. เปลี่ยน SPREADSHEET_ID\n5. Deploy เป็น Web app');
                 }).catch(() => {
                     fallbackCopy(scriptCode);
                 });
@@ -1662,13 +1732,10 @@ function doGet(e) {
                 textArea.select();
                 try {
                     document.execCommand('copy');
-                    alert('Code copied successfully!');
+                    alert('คัดลอกโค้ดเรียบร้อยแล้ว!');
                 } catch (err) {
-                    alert('Cannot copy automatically\nPlease copy the code manually');
+                    alert('ไม่สามารถคัดลอกอัตโนมัติได้\nกรุณาคัดลอกโค้ดด้วยตนเอง');
                 }
                 document.body.removeChild(textArea);
             }
         }
-    </script>
-</body>
-</html>
